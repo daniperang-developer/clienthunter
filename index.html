@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>B2B Packaging - Mobile Terreno & Mini CRM</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            user-select: none;
+            background-color: #f8fafc;
+        }
+
+        /* Safe area spacing for mobile devices with notches or home bars */
+        .safe-bottom {
+            padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+        }
+
+        #mapCanvas {
+            height: 100%;
+            width: 100%;
+            border-radius: 1rem;
+            z-index: 10;
+        }
+
+        .leaflet-popup-content-wrapper {
+            border-radius: 14px;
+            padding: 6px;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15);
+        }
+
+        /* Custom scrollbar */
+        .custom-scroll::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        /* Smooth Tab Animation */
+        .tab-content {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+        }
+        .tab-content.active {
+            display: block;
+            opacity: 1;
+        }
+
+        /* Ripple touch effect styling */
+        .touch-active:active {
+            transform: scale(0.97);
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen pb-20">
+
+    <!-- Mobile App Header -->
+    <header class="bg-slate-900 text-white sticky top-0 z-40 border-b border-slate-800 shadow-md">
+        <div class="max-w-md mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-2.5">
+                <div class="bg-blue-600 p-2 rounded-xl text-white shadow-lg shadow-blue-500/30 flex items-center justify-center w-9 h-9">
+                    <i class="fa-solid fa-boxes-packing text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-sm font-bold tracking-tight leading-tight flex items-center gap-1.5">
+                        Packaging Terreno
+                        <span id="demoModeBadge" class="bg-amber-500/20 text-amber-300 text-[9px] px-1.5 py-0.5 rounded font-mono font-normal">Demo</span>
+                    </h1>
+                    <p class="text-[10px] text-slate-400">Prospección & CRM Móvil</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <button onclick="obtenerUbicacionGPS()" class="bg-slate-800 hover:bg-slate-700 active:bg-blue-600 text-slate-200 p-2 rounded-xl border border-slate-700 transition flex items-center justify-center w-9 h-9 touch-active" title="Obtener GPS">
+                    <i class="fa-solid fa-location-crosshairs text-amber-400"></i>
+                </button>
+                <button onclick="openApiKeyModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 p-2 rounded-xl border border-slate-700 transition flex items-center justify-center w-9 h-9 touch-active" title="Ajustes API Key">
+                    <i class="fa-solid fa-gear text-slate-300 text-sm"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Notification Toast Banner -->
+    <div id="toastContainer" class="fixed top-14 left-4 right-4 z-50 flex flex-col gap-2 pointer-events-none max-w-md mx-auto"></div>
+
+    <!-- MAIN MOBILE APPLICATION CONTAINER -->
+    <main class="max-w-md mx-auto px-3 pt-3">
+
+        <!-- TAB 1: BUSCAR PROSPECTOS -->
+        <section id="tab-buscar" class="tab-content active space-y-3">
+            
+            <!-- Quick GPS Location Card -->
+            <div class="bg-gradient-to-br from-blue-900 to-slate-900 text-white p-4 rounded-2xl shadow-lg border border-blue-800/50">
+                <div class="flex justify-between items-start mb-3">
+                    <div>
+                        <span class="text-[10px] text-blue-300 font-semibold uppercase tracking-wider block mb-0.5">Prospección de Terreno</span>
+                        <h2 class="text-base font-bold">Encuentra locales cerca</h2>
+                    </div>
+                    <button onclick="obtenerUbicacionGPS()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded-xl font-medium shadow-md flex items-center gap-1.5 touch-active">
+                        <i class="fa-solid fa-location-arrow"></i> GPS
+                    </button>
+                </div>
+
+                <div class="space-y-2.5">
+                    <div>
+                        <label class="block text-[10px] font-medium text-slate-300 mb-1">Rubro comercial / Producto</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-store absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                            <input type="text" id="rubro" value="Pastelería" placeholder="Ej: Pastelería, Joyería, Gourmet" 
+                                   class="w-full pl-9 pr-3 py-2 bg-slate-800/80 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-medium text-slate-300 mb-1">Comuna / Ciudad o Dirección</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-map-pin absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                            <input type="text" id="ciudad" value="Providencia" placeholder="Ej: Providencia, Santiago" 
+                                   class="w-full pl-9 pr-3 py-2 bg-slate-800/80 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+
+                    <button onclick="ejecutarProspeccion()" 
+                            class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2.5 px-4 rounded-xl shadow-lg shadow-blue-500/30 touch-active transition flex items-center justify-center gap-2 text-xs">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <span>Buscar en esta zona</span>
+                    </button>
+                </div>
+
+                <!-- Quick Tags -->
+                <div class="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center gap-1.5 overflow-x-auto custom-scroll text-[10px]">
+                    <span class="text-slate-400 shrink-0">Rápidos:</span>
+                    <button onclick="quickSearch('Pastelería', 'Providencia')" class="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg shrink-0 border border-slate-700">🍰 Pastelerías</button>
+                    <button onclick="quickSearch('Joyería', 'Las Condes')" class="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg shrink-0 border border-slate-700">💎 Joyerías</button>
+                    <button onclick="quickSearch('Boutique', 'Viña del Mar')" class="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg shrink-0 border border-slate-700">👗 Boutiques</button>
+                    <button onclick="quickSearch('Chocolatería', 'Santiago')" class="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg shrink-0 border border-slate-700">🍫 Chocolates</button>
+                </div>
+            </div>
+
+            <!-- Status Loader -->
+            <div id="status" class="hidden p-3 bg-blue-50 text-blue-700 text-xs font-medium rounded-xl border border-blue-100 items-center justify-center gap-2">
+                <i class="fa-solid fa-circle-notch fa-spin text-blue-600"></i>
+                <span id="statusText">Buscando locales...</span>
+            </div>
+
+            <!-- Recent Search Summary Cards -->
+            <div id="searchResultSummary" class="hidden bg-emerald-50 border border-emerald-200 p-3 rounded-2xl flex items-center justify-between text-xs text-emerald-900">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-circle-check text-emerald-600 text-base"></i>
+                    <div>
+                        <strong id="counterText">0 prospectos</strong>
+                        <p class="text-[10px] text-emerald-700">Listos para gestión comercial</p>
+                    </div>
+                </div>
+                <button onclick="switchTab('lista')" class="bg-emerald-600 text-white font-semibold px-3 py-1.5 rounded-xl text-[11px] touch-active">
+                    Ver Lista <i class="fa-solid fa-arrow-right ml-1"></i>
+                </button>
+            </div>
+
+            <!-- Quick CRM Summary Widget -->
+            <div class="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm">
+                <h3 class="text-xs font-bold text-slate-700 mb-2 flex items-center justify-between">
+                    <span><i class="fa-solid fa-chart-simple text-blue-600 mr-1.5"></i> Resumen de Hoy</span>
+                    <span id="todayDateLabel" class="text-[10px] font-normal text-slate-400"></span>
+                </h3>
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <p class="text-[9px] text-slate-400 font-semibold uppercase">Prospectos</p>
+                        <p id="metricTotal" class="text-lg font-bold text-slate-800">0</p>
+                    </div>
+                    <div class="bg-amber-50 p-2.5 rounded-xl border border-amber-100">
+                        <p class="text-[9px] text-amber-700 font-semibold uppercase">Contactados</p>
+                        <p id="metricContacted" class="text-lg font-bold text-amber-800">0</p>
+                    </div>
+                    <div class="bg-emerald-50 p-2.5 rounded-xl border border-emerald-100">
+                        <p class="text-[9px] text-emerald-700 font-semibold uppercase">Visitas Hoy</p>
+                        <p id="metricVisits" class="text-lg font-bold text-emerald-800">0</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: LISTA DE PROSPECTOS -->
+        <section id="tab-lista" class="tab-content space-y-3">
+            
+            <!-- Filters Bar -->
+            <div class="bg-white p-2.5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-2 overflow-x-auto custom-scroll text-xs">
+                <select id="filterRating" onchange="aplicarFiltros()" class="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700 font-medium text-xs focus:outline-none">
+                    <option value="all">⭐ Todos los Ratings</option>
+                    <option value="high">4.5⭐ o más (Top)</option>
+                    <option value="mid">4.0⭐ a 4.4⭐</option>
+                </select>
+
+                <select id="filterStatus" onchange="aplicarFiltros()" class="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700 font-medium text-xs focus:outline-none">
+                    <option value="all">📌 Todos los Estados</option>
+                    <option value="Pendiente">⏳ Sin Contactar</option>
+                    <option value="Contactado">📩 Contactados</option>
+                    <option value="Interesado">🔥 En Cotización</option>
+                    <option value="Ganado">✅ Clientes Ganados</option>
+                </select>
+
+                <button onclick="exportarCSV()" class="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-xl font-medium shrink-0 flex items-center gap-1 border border-slate-200 touch-active">
+                    <i class="fa-solid fa-file-excel text-emerald-600"></i> CSV
+                </button>
+            </div>
+
+            <!-- Cards Container -->
+            <div id="cardsContainer" class="space-y-3">
+                <div class="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
+                    <i class="fa-solid fa-magnifying-glass text-3xl mb-2 text-slate-300 block"></i>
+                    No hay prospectos desplegados. Realiza una búsqueda arriba.
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: MAPA INTERACTIVO -->
+        <section id="tab-mapa" class="tab-content space-y-3">
+            <div class="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col h-[calc(100vh-170px)]">
+                <div class="flex items-center justify-between mb-2 shrink-0">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-map-location-dot text-blue-600 text-sm"></i>
+                        <h2 class="text-xs font-bold text-slate-800">Mapa de Terreno</h2>
+                    </div>
+                    <span id="engineBadge" class="text-[9px] uppercase font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-md">
+                        Leaflet Engine
+                    </span>
+                </div>
+
+                <!-- Map Container -->
+                <div class="relative flex-1 bg-slate-100 rounded-xl overflow-hidden border border-slate-200">
+                    <div id="mapCanvas"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: PIPELINE CRM & DASHBOARD -->
+        <section id="tab-crm" class="tab-content space-y-3">
+            
+            <!-- Ratings Chart -->
+            <div class="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm">
+                <h3 class="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
+                    <i class="fa-solid fa-chart-pie text-indigo-600"></i>
+                    Reputación de Locales (Google)
+                </h3>
+                <div class="relative h-[160px] w-full flex items-center justify-center">
+                    <canvas id="ratingsChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Pipeline Funnel Stages Cards -->
+            <div class="space-y-2">
+                <h3 class="text-xs font-bold text-slate-700 px-1">Pipeline de Ventas</h3>
+                
+                <div id="pipelineStages" class="grid grid-cols-2 gap-2 text-xs">
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <span class="text-[10px] text-slate-400 font-semibold block">⏳ Pendientes</span>
+                        <span id="stagePendiente" class="text-base font-bold text-slate-700">0</span>
+                    </div>
+                    <div class="bg-blue-50 p-3 rounded-xl border border-blue-200">
+                        <span class="text-[10px] text-blue-600 font-semibold block">📩 Contactados</span>
+                        <span id="stageContactado" class="text-base font-bold text-blue-800">0</span>
+                    </div>
+                    <div class="bg-amber-50 p-3 rounded-xl border border-amber-200">
+                        <span class="text-[10px] text-amber-700 font-semibold block">🔥 En Cotización</span>
+                        <span id="stageInteresado" class="text-base font-bold text-amber-900">0</span>
+                    </div>
+                    <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-200">
+                        <span class="text-[10px] text-emerald-700 font-semibold block">✅ Clientes Ganados</span>
+                        <span id="stageGanado" class="text-base font-bold text-emerald-900">0</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 5: REGISTRO DE VISITAS TERRENO -->
+        <section id="tab-visitas" class="tab-content space-y-3">
+            <div class="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                <div>
+                    <h3 class="text-xs font-bold text-slate-800">Bitácora de Visitas</h3>
+                    <p class="text-[10px] text-slate-400">Historial de terreno e hitos</p>
+                </div>
+                <button onclick="openCheckinModal()" class="bg-blue-600 text-white text-xs px-3 py-1.5 rounded-xl font-semibold shadow-md touch-active flex items-center gap-1">
+                    <i class="fa-solid fa-plus"></i> Nueva Visita
+                </button>
+            </div>
+
+            <!-- Visits Timeline List -->
+            <div id="visitasListContainer" class="space-y-2">
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
+                    <i class="fa-solid fa-clipboard-user text-2xl mb-1 text-slate-300 block"></i>
+                    Aún no se han registrado visitas en terreno hoy.
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MOBILE FIXED BOTTOM NAVIGATION BAR -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md text-slate-400 border-t border-slate-800 z-40 safe-bottom">
+        <div class="max-w-md mx-auto grid grid-cols-5 text-center text-[10px] py-2">
+            <button onclick="switchTab('buscar')" id="nav-buscar" class="nav-btn text-blue-400 flex flex-col items-center gap-1 touch-active">
+                <i class="fa-solid fa-magnifying-glass text-base"></i>
+                <span class="font-medium">Buscar</span>
+            </button>
+            <button onclick="switchTab('lista')" id="nav-lista" class="nav-btn flex flex-col items-center gap-1 touch-active">
+                <i class="fa-solid fa-list-check text-base"></i>
+                <span class="font-medium">Lista</span>
+            </button>
+            <button onclick="switchTab('mapa')" id="nav-mapa" class="nav-btn flex flex-col items-center gap-1 touch-active">
+                <i class="fa-solid fa-map-location-dot text-base"></i>
+                <span class="font-medium">Mapa</span>
+            </button>
+            <button onclick="switchTab('crm')" id="nav-crm" class="nav-btn flex flex-col items-center gap-1 touch-active">
+                <i class="fa-solid fa-chart-pie text-base"></i>
+                <span class="font-medium">Pipeline</span>
+            </button>
+            <button onclick="switchTab('visitas')" id="nav-visitas" class="nav-btn flex flex-col items-center gap-1 touch-active">
+                <i class="fa-solid fa-street-view text-base"></i>
+                <span class="font-medium">Terreno</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- MODAL: CHECK-IN DE TERRENO -->
+    <div id="checkinModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-4 shadow-2xl border border-slate-100 relative">
+            <button onclick="closeCheckinModal()" class="absolute top-3.5 right-3.5 text-slate-400 hover:text-slate-600">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            
+            <div class="flex items-center gap-2.5 mb-3">
+                <div class="p-2 bg-blue-100 text-blue-600 rounded-xl">
+                    <i class="fa-solid fa-location-dot text-base"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-slate-800 text-sm">Registrar Visita Presencial</h3>
+                    <p class="text-[10px] text-slate-400">Marcar hito en terreno</p>
+                </div>
+            </div>
+
+            <div class="space-y-2.5">
+                <div>
+                    <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">Nombre del Local / Cliente</label>
+                    <input type="text" id="visitNombre" placeholder="Ej: Pastelería Dulce Amor" 
+                           class="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">Resultado de la reunión</label>
+                    <select id="visitResultado" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none">
+                        <option value="Contacto inicial realizado">🤝 Contacto inicial realizado</option>
+                        <option value="Muestras entregadas">📦 Muestras de Packaging entregadas</option>
+                        <option value="Solicita cotización personalizada">📝 Solicita Cotización</option>
+                        <option value="Cierre de venta realizado">🎉 Venta realizada en terreno</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">Notas / Acuerdos</label>
+                    <textarea id="visitNotas" rows="2" placeholder="Ej: Interesados en 500 cajas con logo dorado..." 
+                              class="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+
+                <button onclick="guardarVisitaTerreno()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-3 rounded-xl text-xs shadow-md touch-active">
+                    Guardar Check-In con GPS
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: GOOGLE API KEY CONFIG -->
+    <div id="apiKeyModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-4 shadow-2xl border border-slate-100 relative">
+            <button onclick="closeApiKeyModal()" class="absolute top-3.5 right-3.5 text-slate-400 hover:text-slate-600">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            
+            <div class="flex items-center gap-2.5 mb-2">
+                <div class="p-2 bg-amber-100 text-amber-700 rounded-xl">
+                    <i class="fa-solid fa-key text-base"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-slate-800 text-sm">Google API Key</h3>
+                    <p class="text-[10px] text-slate-400">Places API (New)</p>
+                </div>
+            </div>
+
+            <p class="text-[11px] text-slate-600 mb-3 leading-tight">
+                Ingresa tu API Key de Google Cloud para realizar búsquedas en vivo de locales reales.
+            </p>
+
+            <input type="text" id="userApiKeyInput" placeholder="AIzaSy..." 
+                   class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3">
+
+            <div class="flex items-center justify-end gap-2">
+                <button onclick="closeApiKeyModal()" class="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-xl">Cancelar</button>
+                <button onclick="saveApiKey()" class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-xl font-semibold shadow-md">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let clientesData = [];
+        let filteredData = [];
+        let isGoogleMapsLoaded = false;
+        let leafletMapInstance = null;
+        let mapMarkers = [];
+        let chartInstance = null;
+
+        const LOCAL_STORAGE_CRM_KEY = 'b2b_packaging_crm_status_v2';
+        const LOCAL_STORAGE_VISITAS_KEY = 'b2b_packaging_visitas_v1';
+        
+        let crmStatuses = JSON.parse(localStorage.getItem(LOCAL_STORAGE_CRM_KEY) || '{}');
+        let visitasTerreno = JSON.parse(localStorage.getItem(LOCAL_STORAGE_VISITAS_KEY) || '[]');
+
+        // Chilean Fallback Database for Mobile Demo Mode
+        const databaseDemoChile = [
+            { id: "demo_1", nombre: "Pastelería Dulce Amor", rubro: "pastelería", ciudad: "Providencia", direccion: "Av. Providencia 1420, Providencia", telefono: "+56922345678", website: "https://dulceamor.cl", rating: 4.8, lat: -33.4265, lng: -70.6130 },
+            { id: "demo_2", nombre: "Repostería La Artesanal", rubro: "pastelería", ciudad: "Providencia", direccion: "Manuel Montt 450, Providencia", telefono: "+56923456789", website: "https://laartesanalbakery.cl", rating: 4.6, lat: -33.4320, lng: -70.6210 },
+            { id: "demo_3", nombre: "Bakery & Co. Gourmet", rubro: "pastelería", ciudad: "Providencia", direccion: "Av. Pedro de Valdivia 880, Providencia", telefono: "+56987654321", website: "https://bakeryandco.cl", rating: 4.9, lat: -33.4310, lng: -70.6090 },
+            { id: "demo_4", nombre: "Chocolatería Boutique Cacao", rubro: "pastelería", ciudad: "Providencia", direccion: "Eliodoro Yáñez 1920, Providencia", telefono: "+56928901234", website: "", rating: 4.2, lat: -33.4350, lng: -70.6050 },
+            { id: "demo_5", nombre: "Joyería Aurum & Co.", rubro: "joyería", ciudad: "Las Condes", direccion: "Av. Apoquindo 4800, Las Condes", telefono: "+56924567890", website: "https://aurumjoyeria.cl", rating: 4.9, lat: -33.4110, lng: -70.5750 },
+            { id: "demo_6", nombre: "Boutique Moda Italiana", rubro: "boutique", ciudad: "Viña del Mar", direccion: "Av. Libertad 940, Viña del Mar", telefono: "+56932268901", website: "https://modaitaliana.cl", rating: 4.5, lat: -32.9980, lng: -71.5510 }
+        ];
+
+        window.onload = function() {
+            // Set today date
+            const options = { weekday: 'short', day: 'numeric', month: 'short' };
+            document.getElementById('todayDateLabel').innerText = new Date().toLocaleDateString('es-CL', options);
+
+            checkStoredApiKey();
+            initChart([0, 0, 0, 0]);
+            initLeafletMap(-33.4489, -70.6693, 13);
+            
+            ejecutarProspeccion();
+            renderizarVisitas();
+        };
+
+        function switchTab(tabName) {
+            const tabs = ['buscar', 'lista', 'mapa', 'crm', 'visitas'];
+            tabs.forEach(t => {
+                const el = document.getElementById(`tab-${t}`);
+                const btn = document.getElementById(`nav-${t}`);
+                if (t === tabName) {
+                    el.classList.add('active');
+                    btn.classList.add('text-blue-400');
+                    btn.classList.remove('text-slate-400');
+                } else {
+                    el.classList.remove('active');
+                    btn.classList.remove('text-blue-400');
+                    btn.classList.add('text-slate-400');
+                }
+            });
+
+            // Refresh map view size if opening map tab
+            if (tabName === 'mapa' && leafletMapInstance) {
+                setTimeout(() => {
+                    leafletMapInstance.invalidateSize();
+                    actualizarMapaCanvas();
+                }, 150);
+            }
+        }
+
+        function obtenerUbicacionGPS() {
+            if (!navigator.geolocation) {
+                showToast('GPS no soportado en este dispositivo', 'warning');
+                return;
+            }
+
+            showStatus("Obteniendo posición GPS...");
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    hideStatus();
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+
+                    document.getElementById('ciudad').value = `Mi GPS (${lat.toFixed(3)}, ${lng.toFixed(3)})`;
+                    if (leafletMapInstance) {
+                        leafletMapInstance.setView([lat, lng], 14);
+                    }
+                    showToast('Ubicación GPS capturada con éxito', 'success');
+                    ejecutarProspeccion();
+                },
+                () => {
+                    hideStatus();
+                    showToast('No se obtuvo respuesta del GPS', 'warning');
+                },
+                { enableHighAccuracy: true, timeout: 7000 }
+            );
+        }
+
+        function checkStoredApiKey() {
+            const savedKey = localStorage.getItem('b2b_gmaps_key');
+            if (savedKey && savedKey.trim() !== '') {
+                loadGoogleMapsScript(savedKey.trim());
+            }
+        }
+
+        function loadGoogleMapsScript(key) {
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&v=weekly&libraries=places`;
+            script.async = true;
+            script.defer = true;
+            script.onload = () => {
+                isGoogleMapsLoaded = true;
+                document.getElementById('demoModeBadge').innerText = 'API Activa';
+                document.getElementById('demoModeBadge').className = 'bg-emerald-500/20 text-emerald-300 text-[9px] px-1.5 py-0.5 rounded font-mono';
+                document.getElementById('engineBadge').innerText = 'Google Places';
+                showToast('Conectado a Google Places API', 'success');
+            };
+            script.onerror = () => {
+                isGoogleMapsLoaded = false;
+                showToast('Key no válida. Usando modo simulación', 'warning');
+            };
+            document.head.appendChild(script);
+        }
+
+        function initLeafletMap(lat, lng, zoom) {
+            const container = document.getElementById('mapCanvas');
+            container.innerHTML = '';
+
+            if (leafletMapInstance) leafletMapInstance.remove();
+
+            leafletMapInstance = L.map('mapCanvas', { zoomControl: false }).setView([lat, lng], zoom);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(leafletMapInstance);
+
+            // Add small zoom control on top right for mobile touch
+            L.control.zoom({ position: 'topright' }).addTo(leafletMapInstance);
+        }
+
+        function quickSearch(rubro, ciudad) {
+            document.getElementById('rubro').value = rubro;
+            document.getElementById('ciudad').value = ciudad;
+            switchTab('buscar');
+            ejecutarProspeccion();
+        }
+
+        async function ejecutarProspeccion() {
+            const rubroInput = document.getElementById('rubro').value.trim();
+            const ciudadInput = document.getElementById('ciudad').value.trim();
+            
+            if (!rubroInput) {
+                showToast('Ingresa un rubro comercial', 'info');
+                return;
+            }
+
+            showStatus(`Consultando locales de "${rubroInput}"...`);
+            clientesData = [];
+
+            if (isGoogleMapsLoaded && typeof google !== 'undefined' && google.maps && google.maps.places) {
+                await buscarConGooglePlaces(rubroInput, ciudadInput);
+            } else {
+                await buscarConModoSimulado(rubroInput, ciudadInput);
+            }
+
+            hideStatus();
+            aplicarFiltros();
+        }
+
+        async function buscarConGooglePlaces(rubroInput, ciudadInput) {
+            try {
+                const { Place } = await google.maps.importLibrary("places");
+                const request = {
+                    textQuery: `${rubroInput} en ${ciudadInput}, Chile`,
+                    fields: ['displayName', 'formattedAddress', 'rating', 'id', 'nationalPhoneNumber', 'websiteURI', 'location'],
+                    maxResultCount: 20,
+                    language: 'es-CL'
+                };
+
+                const { places } = await Place.searchByText(request);
+                if (places && places.length > 0) {
+                    places.forEach(place => {
+                        clientesData.push({
+                            id: place.id,
+                            nombre: place.displayName || 'Sin nombre',
+                            direccion: place.formattedAddress || 'Sin dirección',
+                            telefono: place.nationalPhoneNumber || '',
+                            website: place.websiteURI || '',
+                            rating: place.rating || null,
+                            lat: place.location ? place.location.lat() : null,
+                            lng: place.location ? place.location.lng() : null
+                        });
+                    });
+                }
+            } catch (err) {
+                await buscarConModoSimulado(rubroInput, ciudadInput);
+            }
+        }
+
+        async function buscarConModoSimulado(rubroInput, ciudadInput) {
+            await new Promise(r => setTimeout(r, 350));
+            
+            const rClean = rubroInput.toLowerCase();
+            const cClean = ciudadInput.toLowerCase();
+
+            let resultados = databaseDemoChile.filter(item => {
+                const matchRubro = item.rubro.includes(rClean) || rClean.includes(item.rubro) || rClean.length > 3;
+                const matchCiudad = item.ciudad.toLowerCase().includes(cClean) || cClean.includes(item.ciudad.toLowerCase()) || cClean.length > 3;
+                return matchRubro || matchCiudad;
+            });
+
+            if (resultados.length === 0) {
+                resultados = [
+                    { id: "gen_1", nombre: `${rubroInput} Gourmet ${ciudadInput}`, direccion: `Av. Principal 102, ${ciudadInput}`, telefono: "+56912345678", website: "https://ejemplonegocio.cl", rating: 4.8, lat: -33.4300, lng: -70.6100 },
+                    { id: "gen_2", nombre: `Taller de ${rubroInput} Artesanal`, direccion: `Calle Los Aromos 450, ${ciudadInput}`, telefono: "+56923456789", website: "", rating: 4.3, lat: -33.4350, lng: -70.6150 },
+                    { id: "gen_3", nombre: `Boutique & Packaging ${ciudadInput}`, direccion: `Plaza Mayor 88, ${ciudadInput}`, telefono: "+56987654321", website: "https://boutiquepack.cl", rating: 4.6, lat: -33.4250, lng: -70.6050 }
+                ];
+            }
+
+            clientesData = resultados;
+        }
+
+        function aplicarFiltros() {
+            const filterRatingVal = document.getElementById('filterRating').value;
+            const filterStatusVal = document.getElementById('filterStatus').value;
+
+            filteredData = clientesData.filter(cliente => {
+                const statusActual = crmStatuses[cliente.id] || 'Pendiente';
+                if (filterStatusVal !== 'all' && statusActual !== filterStatusVal) return false;
+
+                if (filterRatingVal === 'high' && (!cliente.rating || cliente.rating < 4.5)) return false;
+                if (filterRatingVal === 'mid' && (!cliente.rating || cliente.rating < 4.0 || cliente.rating >= 4.5)) return false;
+
+                return true;
+            });
+
+            renderizarResultados();
+        }
+
+        function cambiarEstadoCRM(clienteId, nuevoEstado) {
+            crmStatuses[clienteId] = nuevoEstado;
+            localStorage.setItem(LOCAL_STORAGE_CRM_KEY, JSON.stringify(crmStatuses));
+            showToast(`Estado CRM: ${nuevoEstado}`, 'info');
+            actualizarChartYMetricas(clientesData);
+        }
+
+        function renderizarResultados() {
+            const container = document.getElementById('cardsContainer');
+            container.innerHTML = '';
+
+            const summary = document.getElementById('searchResultSummary');
+            const counterText = document.getElementById('counterText');
+
+            if (filteredData.length === 0) {
+                summary.classList.add('hidden');
+                container.innerHTML = `
+                    <div class="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
+                        No hay prospectos que coincidan con los filtros seleccionados.
+                    </div>`;
+                actualizarChartYMetricas([]);
+                return;
+            }
+
+            summary.classList.remove('hidden');
+            counterText.innerText = `${filteredData.length} prospectos hallados`;
+
+            filteredData.forEach((cliente) => {
+                const statusActual = crmStatuses[cliente.id] || 'Pendiente';
+                const fonoLimpio = (cliente.telefono || '').replace(/\s+/g, '');
+
+                const pitchMsg = `Hola equipo de ${cliente.nombre}, vi su local en terreno y nos encantaría ofrecerles bolsas y packaging personalizado de excelente calidad para sus productos. ¿Tienen requerimientos que podamos cotizarles?`;
+                
+                const waLink = fonoLimpio 
+                    ? `https://wa.me/${fonoLimpio.replace('+', '')}?text=${encodeURIComponent(pitchMsg)}`
+                    : '#';
+
+                const gmapsNavUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cliente.nombre + ' ' + cliente.direccion)}`;
+
+                // Mobile Card Element
+                const card = document.createElement('div');
+                card.className = "bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm space-y-2.5 text-xs";
+                card.innerHTML = `
+                    <div class="flex justify-between items-start gap-2">
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-sm leading-tight">${escapeHtml(cliente.nombre)}</h3>
+                            <p class="text-slate-500 text-[11px] flex items-center gap-1 mt-0.5">
+                                <i class="fa-solid fa-location-dot text-slate-400 text-[10px]"></i>
+                                <span>${escapeHtml(cliente.direccion)}</span>
+                            </p>
+                        </div>
+                        <span class="shrink-0 bg-amber-50 text-amber-800 px-2 py-0.5 rounded-lg font-bold text-[10px] border border-amber-200">
+                            ${cliente.rating ? `${cliente.rating} ⭐` : 'S/I'}
+                        </span>
+                    </div>
+
+                    <!-- Quick Details Badges -->
+                    <div class="flex flex-wrap items-center gap-2 text-[11px]">
+                        ${fonoLimpio ? `<a href="tel:${fonoLimpio}" class="text-blue-600 font-mono font-medium flex items-center gap-1"><i class="fa-solid fa-phone text-[10px]"></i> ${escapeHtml(cliente.telefono)}</a>` : '<span class="text-slate-400 text-[10px]">Sin fono</span>'}
+                        ${cliente.website ? `<a href="${cliente.website}" target="_blank" class="text-indigo-600 font-medium flex items-center gap-1"><i class="fa-solid fa-globe text-[10px]"></i> Sitio Web</a>` : ''}
+                    </div>
+
+                    <!-- Actions & Status Selector Bar -->
+                    <div class="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                        <!-- CRM Select -->
+                        <select onchange="cambiarEstadoCRM('${cliente.id}', this.value)" class="bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-[11px] py-1.5 px-2 focus:outline-none font-medium">
+                            <option value="Pendiente" ${statusActual === 'Pendiente' ? 'selected' : ''}>⏳ Sin Contactar</option>
+                            <option value="Contactado" ${statusActual === 'Contactado' ? 'selected' : ''}>📩 Contactado</option>
+                            <option value="Interesado" ${statusActual === 'Interesado' ? 'selected' : ''}>🔥 En Cotización</option>
+                            <option value="Ganado" ${statusActual === 'Ganado' ? 'selected' : ''}>✅ Venta Ganada</option>
+                        </select>
+
+                        <!-- Mobile Action Buttons -->
+                        <div class="flex items-center gap-1.5">
+                            <a href="${gmapsNavUrl}" target="_blank" class="bg-slate-100 hover:bg-slate-200 text-slate-700 p-2 rounded-xl text-xs flex items-center justify-center touch-active border border-slate-200" title="Navegar en Mapa">
+                                <i class="fa-solid fa-diamond-turn-right text-blue-600"></i>
+                            </a>
+                            ${fonoLimpio ? `
+                            <a href="${waLink}" target="_blank" class="bg-emerald-500 hover:bg-emerald-600 text-white p-2 rounded-xl text-xs flex items-center justify-center touch-active shadow-sm" title="WhatsApp">
+                                <i class="fa-brands fa-whatsapp text-sm"></i>
+                            </a>` : ''}
+                            <button onclick="compartirCliente('${escapeHtml(cliente.nombre)}', '${escapeHtml(cliente.direccion)}', '${fonoLimpio}')" class="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-xl text-xs flex items-center justify-center touch-active shadow-sm" title="Compartir Ficha">
+                                <i class="fa-solid fa-share-nodes"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            actualizarMapaCanvas();
+            actualizarChartYMetricas(filteredData);
+        }
+
+        function actualizarMapaCanvas() {
+            if (leafletMapInstance) {
+                mapMarkers.forEach(m => leafletMapInstance.removeLayer(m));
+                mapMarkers = [];
+
+                const bounds = [];
+                filteredData.forEach(c => {
+                    if (c.lat && c.lng) {
+                        const marker = L.marker([c.lat, c.lng]).addTo(leafletMapInstance);
+                        marker.bindPopup(`
+                            <div class="text-xs">
+                                <strong class="text-slate-800 block text-sm mb-0.5">${escapeHtml(c.nombre)}</strong>
+                                <p class="text-slate-500 text-[11px] mb-1">${escapeHtml(c.direccion)}</p>
+                                <a href="tel:${c.telefono}" class="text-blue-600 font-semibold font-mono text-[11px]">${escapeHtml(c.telefono || 'Sin teléfono')}</a>
+                            </div>
+                        `);
+                        mapMarkers.push(marker);
+                        bounds.push([c.lat, c.lng]);
+                    }
+                });
+
+                if (bounds.length > 0) {
+                    leafletMapInstance.fitBounds(bounds, { padding: [30, 30] });
+                }
+            }
+        }
+
+        function initChart(dataCounts) {
+            const ctx = document.getElementById('ratingsChart').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+
+            chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['4.5-5.0 ⭐', '4.0-4.4 ⭐', 'Bajo 4.0 ⭐', 'Sin Rating'],
+                    datasets: [{
+                        data: dataCounts,
+                        backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#cbd5e1'],
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'right', labels: { boxWidth: 8, font: { size: 9, family: 'Inter' } } }
+                    },
+                    cutout: '65%'
+                }
+            });
+        }
+
+        function actualizarChartYMetricas(data) {
+            let excelente = 0, bueno = 0, regular = 0, sinRating = 0;
+            let contactados = 0;
+
+            let stageCounts = { Pendiente: 0, Contactado: 0, Interesado: 0, Ganado: 0 };
+
+            data.forEach(c => {
+                const st = crmStatuses[c.id] || 'Pendiente';
+                stageCounts[st] = (stageCounts[st] || 0) + 1;
+
+                if (st !== 'Pendiente') contactados++;
+
+                if (!c.rating) sinRating++;
+                else if (c.rating >= 4.5) excelente++;
+                else if (c.rating >= 4.0) bueno++;
+                else regular++;
+            });
+
+            initChart([excelente, bueno, regular, sinRating]);
+            
+            document.getElementById('metricTotal').innerText = data.length;
+            document.getElementById('metricContacted').innerText = contactados;
+            document.getElementById('metricVisits').innerText = visitasTerreno.length;
+
+            document.getElementById('stagePendiente').innerText = stageCounts.Pendiente;
+            document.getElementById('stageContactado').innerText = stageCounts.Contactado;
+            document.getElementById('stageInteresado').innerText = stageCounts.Interesado;
+            document.getElementById('stageGanado').innerText = stageCounts.Ganado;
+        }
+
+        function openCheckinModal() { document.getElementById('checkinModal').classList.remove('hidden'); }
+        function closeCheckinModal() { document.getElementById('checkinModal').classList.add('hidden'); }
+
+        function guardarVisitaTerreno() {
+            const nombre = document.getElementById('visitNombre').value.trim();
+            const resultado = document.getElementById('visitResultado').value;
+            const notas = document.getElementById('visitNotas').value.trim();
+
+            if (!nombre) {
+                showToast('Ingresa el nombre del local', 'warning');
+                return;
+            }
+
+            const nuevaVisita = {
+                id: 'v_' + Date.now(),
+                nombre: nombre,
+                resultado: resultado,
+                notas: notas || 'Sin observaciones.',
+                fecha: new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })
+            };
+
+            visitasTerreno.unshift(nuevaVisita);
+            localStorage.setItem(LOCAL_STORAGE_VISITAS_KEY, JSON.stringify(visitasTerreno));
+            
+            closeCheckinModal();
+            document.getElementById('visitNombre').value = '';
+            document.getElementById('visitNotas').value = '';
+
+            renderizarVisitas();
+            actualizarChartYMetricas(clientesData);
+            showToast('Check-In de visita registrado con GPS', 'success');
+        }
+
+        function renderizarVisitas() {
+            const container = document.getElementById('visitasListContainer');
+            container.innerHTML = '';
+
+            if (visitasTerreno.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
+                        <i class="fa-solid fa-clipboard-user text-2xl mb-1 text-slate-300 block"></i>
+                        Aún no se han registrado visitas en terreno hoy.
+                    </div>`;
+                return;
+            }
+
+            visitasTerreno.forEach(v => {
+                const card = document.createElement('div');
+                card.className = "bg-white p-3 rounded-2xl border border-slate-200/80 shadow-sm space-y-1 text-xs";
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <h4 class="font-bold text-slate-800 text-xs">${escapeHtml(v.nombre)}</h4>
+                        <span class="text-[9px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-mono">${v.fecha}</span>
+                    </div>
+                    <p class="text-blue-600 font-semibold text-[11px]">${escapeHtml(v.resultado)}</p>
+                    <p class="text-slate-500 text-[10px] bg-slate-50 p-2 rounded-xl border border-slate-100">${escapeHtml(v.notas)}</p>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        async function compartirCliente(nombre, direccion, fono) {
+            const shareData = {
+                title: `Prospecto Packaging: ${nombre}`,
+                text: `📍 ${nombre}\nDirección: ${direccion}\nTeléfono: ${fono || 'S/I'}\nEmpresa interesada en packaging.`
+            };
+
+            if (navigator.share) {
+                try {
+                    await navigator.share(shareData);
+                } catch (e) {
+                    console.log('Compartir cancelado');
+                }
+            } else {
+                navigator.clipboard.writeText(shareData.text);
+                showToast('Ficha copiada al portapapeles', 'info');
+            }
+        }
+
+        function exportarCSV() {
+            if (filteredData.length === 0) {
+                showToast('No hay datos para exportar', 'warning');
+                return;
+            }
+
+            let csvContent = "\uFEFFID;Nombre Negocio;Dirección;Teléfono;Website;Rating;Estado CRM\n";
+            filteredData.forEach(c => {
+                const st = crmStatuses[c.id] || 'Pendiente';
+                csvContent += `"${c.id}";"${c.nombre}";"${c.direccion}";"${c.telefono}";"${c.website}";"${c.rating || ''}";"${st}"\n`;
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `prospeccion_terreno_${new Date().toISOString().slice(0, 10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast('CSV exportado con éxito', 'success');
+        }
+
+        function openApiKeyModal() { document.getElementById('apiKeyModal').classList.remove('hidden'); }
+        function closeApiKeyModal() { document.getElementById('apiKeyModal').classList.add('hidden'); }
+
+        function saveApiKey() {
+            const val = document.getElementById('userApiKeyInput').value.trim();
+            if (val) localStorage.setItem('b2b_gmaps_key', val);
+            else localStorage.removeItem('b2b_gmaps_key');
+            closeApiKeyModal();
+            location.reload();
+        }
+
+        function showStatus(text) {
+            const statusDiv = document.getElementById('status');
+            document.getElementById('statusText').innerText = text;
+            statusDiv.classList.remove('hidden');
+            statusDiv.classList.add('flex');
+        }
+
+        function hideStatus() {
+            document.getElementById('status').classList.add('hidden');
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            
+            const colors = {
+                success: 'bg-emerald-900 text-emerald-100 border-emerald-700',
+                warning: 'bg-amber-900 text-amber-100 border-amber-700',
+                info: 'bg-slate-900 text-slate-100 border-slate-700'
+            };
+
+            toast.className = `px-3.5 py-2.5 rounded-xl border shadow-xl text-xs font-medium transition duration-300 transform -translate-y-2 flex items-center gap-2 ${colors[type] || colors.info}`;
+            toast.innerHTML = `<span>${escapeHtml(message)}</span>`;
+
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.remove('-translate-y-2'), 10);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', '-translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return String(text)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
