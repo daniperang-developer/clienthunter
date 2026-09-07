@@ -2,8 +2,8 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>B2B Packaging - Prospección & CRM (Escritorio & Móvil)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>B2B Packaging - Mobile Terreno & Mini CRM</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chart.js -->
@@ -11,64 +11,49 @@
     <!-- Leaflet CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- FontAwesome Icons -->
+    <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Dynamic Google Maps Script Loader -->
-    <script>
-        window.isGoogleMapsLoaded = false;
-        (function() {
-            const key = localStorage.getItem('b2b_gmaps_key');
-            if (key) {
-                const script = document.createElement('script');
-                script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&callback=onGoogleMapsSdkLoaded`;
-                script.async = true;
-                script.defer = true;
-                document.head.appendChild(script);
-            }
-        })();
-        window.onGoogleMapsSdkLoaded = function() {
-            window.isGoogleMapsLoaded = true;
-            const badge = document.getElementById('engineBadge');
-            if (badge) badge.innerText = "Google Places API";
-        };
-    </script>
-
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
         
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             -webkit-tap-highlight-color: transparent;
-            background-color: #f1f5f9;
+            touch-action: manipulation;
+            user-select: none;
+            background-color: #f8fafc;
         }
 
+        /* Safe area spacing for mobile devices with notches or home bars */
         .safe-bottom {
-            padding-bottom: max(1rem, env(safe-area-inset-bottom));
+            padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
         }
 
         #mapCanvas {
             height: 100%;
             width: 100%;
-            border-radius: 0.75rem;
+            border-radius: 1rem;
             z-index: 10;
         }
 
         .leaflet-popup-content-wrapper {
-            border-radius: 12px;
-            padding: 4px;
+            border-radius: 14px;
+            padding: 6px;
             box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15);
         }
 
+        /* Custom scrollbar */
         .custom-scroll::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
+            width: 4px;
+            height: 4px;
         }
         .custom-scroll::-webkit-scrollbar-thumb {
             background-color: #cbd5e1;
-            border-radius: 6px;
+            border-radius: 4px;
         }
 
+        /* Smooth Tab Animation */
         .tab-content {
             display: none;
             opacity: 0;
@@ -79,372 +64,251 @@
             opacity: 1;
         }
 
+        /* Ripple touch effect styling */
         .touch-active:active {
-            transform: scale(0.98);
+            transform: scale(0.97);
+            opacity: 0.9;
         }
     </style>
 </head>
-<body class="text-slate-800 min-h-screen flex flex-col md:flex-row bg-slate-100">
+<body class="text-slate-800 min-h-screen pb-20">
 
-    
-    <!-- DESKTOP SIDEBAR NAVIGATION (Hidden on mobile) -->
-    <aside class="hidden md:flex flex-col w-64 bg-slate-900 text-white p-4 shrink-0 border-r border-slate-800 h-screen sticky top-0 justify-between">
-        <div>
-            <!-- Brand Logo -->
-            <div class="flex items-center gap-3 pb-5 mb-5 border-b border-slate-800">
-                <div class="bg-blue-600 p-2.5 rounded-xl text-white shadow-lg shadow-blue-500/30 flex items-center justify-center w-10 h-10 shrink-0">
-                    <i class="fa-solid fa-boxes-packing text-xl"></i>
-                </div>
-                <div>
-                    <h1 class="text-sm font-bold tracking-tight leading-tight">Packaging Terreno</h1>
-                    <p class="text-[11px] text-slate-400">Prospección & CRM Desktop</p>
-                </div>
-            </div>
-
-            <!-- Sync Badge -->
-            <div class="mb-6 bg-slate-800/80 p-2.5 rounded-xl border border-slate-700/60 flex items-center justify-between text-xs">
-                <span class="text-slate-400 text-[11px]">Estado Nube:</span>
-                <span id="syncBadgeDesktop" class="bg-amber-500/20 text-amber-300 text-[10px] px-2 py-0.5 rounded font-mono font-medium">Conectando...</span>
-            </div>
-
-            <!-- Navigation Links -->
-            <nav class="space-y-1.5 text-xs font-medium">
-                <button onclick="switchTab('buscar')" id="desk-nav-buscar" class="desk-nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition text-blue-400 bg-slate-800/90 font-semibold">
-                    <i class="fa-solid fa-magnifying-glass text-base w-5"></i>
-                    <span>Buscar Locales</span>
-                </button>
-                <button onclick="switchTab('cartera')" id="desk-nav-cartera" class="desk-nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition text-slate-400 hover:text-white hover:bg-slate-800/50">
-                    <i class="fa-solid fa-address-book text-base w-5"></i>
-                    <span>Cartera Clientes</span>
-                    <span id="deskCarteraBadge" class="ml-auto bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full text-[10px]">0</span>
-                </button>
-                <button onclick="switchTab('mapa')" id="desk-nav-mapa" class="desk-nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition text-slate-400 hover:text-white hover:bg-slate-800/50">
-                    <i class="fa-solid fa-map-location-dot text-base w-5"></i>
-                    <span>Mapa Interactivo</span>
-                </button>
-                <button onclick="switchTab('crm')" id="desk-nav-crm" class="desk-nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition text-slate-400 hover:text-white hover:bg-slate-800/50">
-                    <i class="fa-solid fa-chart-pie text-base w-5"></i>
-                    <span>Pipeline CRM</span>
-                </button>
-                <button onclick="switchTab('visitas')" id="desk-nav-visitas" class="desk-nav-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition text-slate-400 hover:text-white hover:bg-slate-800/50">
-                    <i class="fa-solid fa-street-view text-base w-5"></i>
-                    <span>Bitácora Visitas</span>
-                </button>
-            </nav>
-        </div>
-
-        <!-- Desktop Footer Buttons -->
-        <div class="space-y-2 pt-4 border-t border-slate-800 text-xs">
-            <button onclick="openModalNuevoCliente()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 px-3 rounded-xl font-bold shadow-md transition flex items-center justify-center gap-2">
-                <i class="fa-solid fa-user-plus"></i>
-                <span>Nuevo Cliente Manual</span>
-            </button>
-            <button onclick="openApiKeyModal()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 px-3 rounded-xl border border-slate-700 transition flex items-center justify-center gap-2">
-                <i class="fa-solid fa-gear text-xs"></i>
-                <span>Google API Key</span>
-            </button>
-        </div>
-    </aside>
-
-    <!-- MOBILE HEADER (Visible only on mobile screens) -->
-    <header class="md:hidden bg-slate-900 text-white sticky top-0 z-40 border-b border-slate-800 shadow-md">
-        <div class="px-4 py-2.5 flex justify-between items-center">
+    <!-- Mobile App Header -->
+    <header class="bg-slate-900 text-white sticky top-0 z-40 border-b border-slate-800 shadow-md">
+        <div class="max-w-md mx-auto px-4 py-3 flex justify-between items-center">
             <div class="flex items-center gap-2.5">
-                <div class="bg-blue-600 p-2 rounded-xl text-white shadow-lg flex items-center justify-center w-9 h-9">
+                <div class="bg-blue-600 p-2 rounded-xl text-white shadow-lg shadow-blue-500/30 flex items-center justify-center w-9 h-9">
                     <i class="fa-solid fa-boxes-packing text-lg"></i>
                 </div>
                 <div>
-                    <h1 class="text-xs font-bold leading-tight flex items-center gap-1.5">
-                        Packaging CRM
-                        <span id="syncBadge" class="bg-amber-500/20 text-amber-300 text-[9px] px-1.5 py-0.5 rounded font-mono">Conectando...</span>
+                    <h1 class="text-sm font-bold tracking-tight leading-tight flex items-center gap-1.5">
+                        Packaging Terreno
+                        <span id="demoModeBadge" class="bg-amber-500/20 text-amber-300 text-[9px] px-1.5 py-0.5 rounded font-mono font-normal">Demo</span>
                     </h1>
-                    <p class="text-[10px] text-slate-400">Escritorio & Terreno</p>
+                    <p class="text-[10px] text-slate-400">Prospección & CRM Móvil</p>
                 </div>
             </div>
             
-            <div class="flex items-center gap-1.5">
-                <button onclick="openModalNuevoCliente()" class="bg-emerald-600 text-white p-2 rounded-xl text-xs font-semibold shadow-md touch-active" title="Agregar Cliente">
-                    <i class="fa-solid fa-user-plus"></i>
+            <div class="flex items-center gap-2">
+                <button onclick="obtenerUbicacionGPS()" class="bg-slate-800 hover:bg-slate-700 active:bg-blue-600 text-slate-200 p-2 rounded-xl border border-slate-700 transition flex items-center justify-center w-9 h-9 touch-active" title="Obtener GPS">
+                    <i class="fa-solid fa-location-crosshairs text-amber-400"></i>
                 </button>
-                <button onclick="obtenerUbicacionGPS()" class="bg-slate-800 text-amber-400 p-2 rounded-xl border border-slate-700 flex items-center justify-center w-9 h-9 touch-active" title="GPS">
-                    <i class="fa-solid fa-location-crosshairs text-sm"></i>
+                <button onclick="openApiKeyModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 p-2 rounded-xl border border-slate-700 transition flex items-center justify-center w-9 h-9 touch-active" title="Ajustes API Key">
+                    <i class="fa-solid fa-gear text-slate-300 text-sm"></i>
                 </button>
             </div>
         </div>
     </header>
 
     <!-- Notification Toast Banner -->
-    <div id="toastContainer" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full px-4 md:px-0"></div>
+    <div id="toastContainer" class="fixed top-14 left-4 right-4 z-50 flex flex-col gap-2 pointer-events-none max-w-md mx-auto"></div>
 
-    <!-- MAIN WRAPPER CONTAINER -->
-    <main class="flex-1 max-w-7xl mx-auto w-full p-3 md:p-6 overflow-y-auto pb-24 md:pb-6">
+    <!-- MAIN MOBILE APPLICATION CONTAINER -->
+    <main class="max-w-md mx-auto px-3 pt-3">
 
-        <!-- TAB 1: BUSCAR PROSPECTOS EN TERRENO / ESCRITORIO -->
-        <section id="tab-buscar" class="tab-content active space-y-4">
+        <!-- TAB 1: BUSCAR PROSPECTOS -->
+        <section id="tab-buscar" class="tab-content active space-y-3">
             
-            <!-- Quick Exploration Card -->
-            <div class="bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white p-4 md:p-6 rounded-2xl shadow-xl border border-blue-900/40">
-                <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+            <!-- Quick GPS Location Card -->
+            <div class="bg-gradient-to-br from-blue-900 to-slate-900 text-white p-4 rounded-2xl shadow-lg border border-blue-800/50">
+                <div class="flex justify-between items-start mb-3">
                     <div>
-                        <span class="text-xs text-blue-400 font-semibold uppercase tracking-wider block mb-1">Módulo de Exploración</span>
-                        <h2 class="text-lg md:text-xl font-extrabold">Búsqueda Inteligente de Clientes B2B</h2>
+                        <span class="text-[10px] text-blue-300 font-semibold uppercase tracking-wider block mb-0.5">Prospección de Terreno</span>
+                        <h2 class="text-base font-bold">Encuentra locales cerca</h2>
                     </div>
-                    <button onclick="obtenerUbicacionGPS()" class="self-start md:self-auto bg-blue-600 hover:bg-blue-500 text-white text-xs px-4 py-2 rounded-xl font-semibold shadow-lg flex items-center gap-2 touch-active">
-                        <i class="fa-solid fa-location-arrow"></i> Usar mi ubicación GPS
+                    <button onclick="obtenerUbicacionGPS()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded-xl font-medium shadow-md flex items-center gap-1.5 touch-active">
+                        <i class="fa-solid fa-location-arrow"></i> GPS
                     </button>
                 </div>
 
-                <!-- Input Controls -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div class="space-y-2.5">
                     <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1">Rubro comercial / Producto</label>
+                        <label class="block text-[10px] font-medium text-slate-300 mb-1">Rubro comercial / Producto</label>
                         <div class="relative">
-                            <i class="fa-solid fa-store absolute left-3 top-3 text-slate-400 text-xs"></i>
-                            <input type="text" id="rubro" value="Pastelería" placeholder="Ej: Pastelería, Joyería, Gourmet" onkeypress="if(event.key==='Enter') ejecutarProspeccion()"
-                                   class="w-full pl-9 pr-3 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <i class="fa-solid fa-store absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                            <input type="text" id="rubro" value="Pastelería" placeholder="Ej: Pastelería, Joyería, Gourmet" 
+                                   class="w-full pl-9 pr-3 py-2 bg-slate-800/80 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                     </div>
 
                     <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1">Comuna / Ciudad o Dirección</label>
+                        <label class="block text-[10px] font-medium text-slate-300 mb-1">Comuna / Ciudad o Dirección</label>
                         <div class="relative">
-                            <i class="fa-solid fa-map-pin absolute left-3 top-3 text-slate-400 text-xs"></i>
-                            <input type="text" id="ciudad" value="Providencia" placeholder="Ej: Providencia, Viña del Mar" onkeypress="if(event.key==='Enter') ejecutarProspeccion()"
-                                   class="w-full pl-9 pr-3 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <i class="fa-solid fa-map-pin absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                            <input type="text" id="ciudad" value="Providencia" placeholder="Ej: Providencia, Santiago" 
+                                   class="w-full pl-9 pr-3 py-2 bg-slate-800/80 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                     </div>
 
-                    <div>
-                        <label class="block text-xs font-medium text-slate-300 mb-1">Motor de Búsqueda</label>
-                        <select id="motorBusquedaSelect" class="w-full px-3 py-2.5 bg-slate-800/90 border border-slate-700 rounded-xl text-xs text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="auto">⚡ Automático (Google / OSM)</option>
-                            <option value="google">🔑 Google Places API (Paginado 60+)</option>
-                            <option value="osm">🌐 OpenStreetMap (Real Gratis)</option>
-                            <option value="sim">🤖 Generador B2B (+60 Nombres Limpios)</option>
-                        </select>
-                    </div>
-
-                    <div class="flex items-end">
-                        <button onclick="ejecutarProspeccion()" 
-                                class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2.5 px-4 rounded-xl shadow-lg shadow-blue-500/30 touch-active transition flex items-center justify-center gap-2 text-xs">
-                            <i class="fa-solid fa-magnifying-glass"></i>
-                            <span>Buscar Locales</span>
-                        </button>
-                    </div>
+                    <button onclick="ejecutarProspeccion()" 
+                            class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2.5 px-4 rounded-xl shadow-lg shadow-blue-500/30 touch-active transition flex items-center justify-center gap-2 text-xs">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <span>Buscar en esta zona</span>
+                    </button>
                 </div>
 
-                <!-- Atajos rápidos -->
-                <div class="mt-4 pt-3 border-t border-slate-800 flex items-center gap-2 overflow-x-auto custom-scroll text-xs">
-                    <span class="text-slate-400 shrink-0">Búsquedas rápidas:</span>
-                    <button onclick="quickSearch('Pastelería', 'Providencia')" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg shrink-0 border border-slate-700">🍰 Pastelerías</button>
-                    <button onclick="quickSearch('Joyería', 'Las Condes')" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg shrink-0 border border-slate-700">💎 Joyerías</button>
-                    <button onclick="quickSearch('Boutique', 'Viña del Mar')" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg shrink-0 border border-slate-700">👗 Boutiques</button>
-                    <button onclick="quickSearch('Chocolatería', 'Santiago')" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg shrink-0 border border-slate-700">🍫 Chocolates</button>
+                <!-- Quick Tags -->
+                <div class="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center gap-1.5 overflow-x-auto custom-scroll text-[10px]">
+                    <span class="text-slate-400 shrink-0">Rápidos:</span>
+                    <button onclick="quickSearch('Pastelería', 'Providencia')" class="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg shrink-0 border border-slate-700">🍰 Pastelerías</button>
+                    <button onclick="quickSearch('Joyería', 'Las Condes')" class="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg shrink-0 border border-slate-700">💎 Joyerías</button>
+                    <button onclick="quickSearch('Boutique', 'Viña del Mar')" class="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg shrink-0 border border-slate-700">👗 Boutiques</button>
+                    <button onclick="quickSearch('Chocolatería', 'Santiago')" class="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg shrink-0 border border-slate-700">🍫 Chocolates</button>
                 </div>
             </div>
 
-            <!-- Loader Status -->
-            <div id="status" class="hidden p-3 bg-blue-50 text-blue-700 text-xs font-medium rounded-xl border border-blue-200 items-center justify-center gap-2">
+            <!-- Status Loader -->
+            <div id="status" class="hidden p-3 bg-blue-50 text-blue-700 text-xs font-medium rounded-xl border border-blue-100 items-center justify-center gap-2">
                 <i class="fa-solid fa-circle-notch fa-spin text-blue-600"></i>
                 <span id="statusText">Buscando locales...</span>
             </div>
 
-            <!-- Search Result Bar -->
-            <div id="searchResultSummary" class="hidden bg-emerald-50 border border-emerald-200 p-3.5 rounded-2xl flex items-center justify-between text-xs text-emerald-900">
-                <div class="flex items-center gap-2.5">
-                    <i class="fa-solid fa-circle-check text-emerald-600 text-lg"></i>
+            <!-- Recent Search Summary Cards -->
+            <div id="searchResultSummary" class="hidden bg-emerald-50 border border-emerald-200 p-3 rounded-2xl flex items-center justify-between text-xs text-emerald-900">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-circle-check text-emerald-600 text-base"></i>
                     <div>
-                        <strong id="counterText" class="text-sm">0 prospectos hallados</strong>
-                        <p class="text-xs text-emerald-700">Puedes agregarlos a la cartera de clientes individualmente o masivos</p>
+                        <strong id="counterText">0 prospectos</strong>
+                        <p class="text-[10px] text-emerald-700">Listos para gestión comercial</p>
                     </div>
                 </div>
-                <button onclick="guardarTodosLosBusqueda()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-xl text-xs touch-active shadow-md flex items-center gap-1.5">
-                    <i class="fa-solid fa-download"></i> Guardar Todos
+                <button onclick="switchTab('lista')" class="bg-emerald-600 text-white font-semibold px-3 py-1.5 rounded-xl text-[11px] touch-active">
+                    Ver Lista <i class="fa-solid fa-arrow-right ml-1"></i>
                 </button>
             </div>
 
-            <!-- Search Cards Grid (Desktop 2-3 Columns) -->
-            <div id="searchResultsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div class="col-span-full bg-white p-12 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
-                    <i class="fa-solid fa-magnifying-glass text-4xl mb-3 text-slate-300 block"></i>
-                    Ingresa un rubro comercial y ciudad para explorar potenciales clientes.
+            <!-- Quick CRM Summary Widget -->
+            <div class="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm">
+                <h3 class="text-xs font-bold text-slate-700 mb-2 flex items-center justify-between">
+                    <span><i class="fa-solid fa-chart-simple text-blue-600 mr-1.5"></i> Resumen de Hoy</span>
+                    <span id="todayDateLabel" class="text-[10px] font-normal text-slate-400"></span>
+                </h3>
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <p class="text-[9px] text-slate-400 font-semibold uppercase">Prospectos</p>
+                        <p id="metricTotal" class="text-lg font-bold text-slate-800">0</p>
+                    </div>
+                    <div class="bg-amber-50 p-2.5 rounded-xl border border-amber-100">
+                        <p class="text-[9px] text-amber-700 font-semibold uppercase">Contactados</p>
+                        <p id="metricContacted" class="text-lg font-bold text-amber-800">0</p>
+                    </div>
+                    <div class="bg-emerald-50 p-2.5 rounded-xl border border-emerald-100">
+                        <p class="text-[9px] text-emerald-700 font-semibold uppercase">Visitas Hoy</p>
+                        <p id="metricVisits" class="text-lg font-bold text-emerald-800">0</p>
+                    </div>
                 </div>
-            </div>
-
-            <!-- Load More Pagination Button -->
-            <div id="loadMoreContainer" class="hidden text-center py-4">
-                <button id="btnLoadMore" onclick="cargarMasResultados()" class="bg-slate-900 hover:bg-slate-800 text-white font-bold px-6 py-3 rounded-2xl shadow-xl shadow-slate-900/10 touch-active inline-flex items-center gap-2 text-xs transition hover:scale-[1.02]">
-                    <i class="fa-solid fa-circle-plus text-blue-400 text-sm"></i>
-                    <span id="btnLoadMoreText">Cargar más prospectos (+20)</span>
-                    <span id="loadMoreBadge" class="bg-slate-800 text-blue-300 text-[10px] px-2 py-0.5 rounded-full font-mono ml-1">Página 2</span>
-                </button>
-                <p id="noMoreResultsMsg" class="hidden text-xs text-slate-400 font-medium mt-1">
-                    <i class="fa-solid fa-check-double text-emerald-500 mr-1"></i> Has cargado todos los prospectos disponibles para esta búsqueda.
-                </p>
             </div>
         </section>
 
-        <!-- TAB 2: MI CARTERA DE CLIENTES PERMANENTE -->
-        <section id="tab-cartera" class="tab-content space-y-4">
+        <!-- TAB 2: LISTA DE PROSPECTOS -->
+        <section id="tab-lista" class="tab-content space-y-3">
             
-            <!-- Quick Metrics Header -->
-            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
-                <div>
-                    <h2 class="text-base font-bold text-slate-800">Base de Datos Guardada</h2>
-                    <p class="text-xs text-slate-500"><span id="carteraCount" class="font-bold text-blue-600">0</span> Clientes acumulados en la cartera</p>
-                </div>
+            <!-- Filters Bar -->
+            <div class="bg-white p-2.5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-2 overflow-x-auto custom-scroll text-xs">
+                <select id="filterRating" onchange="aplicarFiltros()" class="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700 font-medium text-xs focus:outline-none">
+                    <option value="all">⭐ Todos los Ratings</option>
+                    <option value="high">4.5⭐ o más (Top)</option>
+                    <option value="mid">4.0⭐ a 4.4⭐</option>
+                </select>
 
-                <div class="flex items-center gap-2">
-                    <button onclick="exportarCSV()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3.5 py-2 rounded-xl font-medium flex items-center gap-1.5 border border-slate-200 text-xs touch-active">
-                        <i class="fa-solid fa-file-excel text-emerald-600"></i> Exportar CSV
-                    </button>
-                    <button onclick="openModalNuevoCliente()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-4 py-2 rounded-xl font-semibold shadow-md touch-active flex items-center gap-1.5">
-                        <i class="fa-solid fa-plus"></i> Nuevo Cliente
-                    </button>
-                </div>
+                <select id="filterStatus" onchange="aplicarFiltros()" class="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700 font-medium text-xs focus:outline-none">
+                    <option value="all">📌 Todos los Estados</option>
+                    <option value="Pendiente">⏳ Sin Contactar</option>
+                    <option value="Contactado">📩 Contactados</option>
+                    <option value="Interesado">🔥 En Cotización</option>
+                    <option value="Ganado">✅ Clientes Ganados</option>
+                </select>
+
+                <button onclick="exportarCSV()" class="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-xl font-medium shrink-0 flex items-center gap-1 border border-slate-200 touch-active">
+                    <i class="fa-solid fa-file-excel text-emerald-600"></i> CSV
+                </button>
             </div>
 
-            <!-- Search & Filters -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div class="md:col-span-2 relative">
-                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-400 text-xs"></i>
-                    <input type="text" id="searchCarteraInput" oninput="filtrarCartera()" placeholder="Buscar por cliente, dirección o persona de contacto..." 
-                           class="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm">
-                </div>
-
-                <div>
-                    <select id="filterCarteraStatus" onchange="filtrarCartera()" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-700 font-medium text-xs focus:outline-none shadow-sm">
-                        <option value="all">📌 Todos los Estados</option>
-                        <option value="Pendiente">⏳ Sin Contactar</option>
-                        <option value="Contactado">📩 Contactados</option>
-                        <option value="Interesado">🔥 En Cotización</option>
-                        <option value="Ganado">✅ Clientes Ganados</option>
-                        <option value="Perdido">❌ No Interesado</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Cartera Cards Grid (Desktop 2-3 Columns) -->
-            <div id="carteraCardsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div class="col-span-full bg-white p-12 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
-                    <i class="fa-solid fa-box-open text-4xl mb-3 text-slate-300 block"></i>
-                    No hay clientes guardados en tu cartera aún.
+            <!-- Cards Container -->
+            <div id="cardsContainer" class="space-y-3">
+                <div class="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
+                    <i class="fa-solid fa-magnifying-glass text-3xl mb-2 text-slate-300 block"></i>
+                    No hay prospectos desplegados. Realiza una búsqueda arriba.
                 </div>
             </div>
         </section>
 
         <!-- TAB 3: MAPA INTERACTIVO -->
-        <section id="tab-mapa" class="tab-content space-y-4">
-            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-[calc(100vh-140px)]">
-                <div class="flex items-center justify-between mb-3 shrink-0">
+        <section id="tab-mapa" class="tab-content space-y-3">
+            <div class="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col h-[calc(100vh-170px)]">
+                <div class="flex items-center justify-between mb-2 shrink-0">
                     <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-map-location-dot text-blue-600 text-base"></i>
-                        <h2 class="text-sm font-bold text-slate-800">Mapa de Cobertura & Prospectos</h2>
+                        <i class="fa-solid fa-map-location-dot text-blue-600 text-sm"></i>
+                        <h2 class="text-xs font-bold text-slate-800">Mapa de Terreno</h2>
                     </div>
-                    <span id="engineBadge" class="text-[10px] uppercase font-bold bg-blue-100 text-blue-800 px-2.5 py-1 rounded-md">
+                    <span id="engineBadge" class="text-[9px] uppercase font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-md">
                         Leaflet Engine
                     </span>
                 </div>
 
+                <!-- Map Container -->
                 <div class="relative flex-1 bg-slate-100 rounded-xl overflow-hidden border border-slate-200">
                     <div id="mapCanvas"></div>
                 </div>
             </div>
         </section>
 
-        <!-- TAB 4: PIPELINE CRM & DASHBOARD KANBAN -->
-        <section id="tab-crm" class="tab-content space-y-5">
+        <!-- TAB 4: PIPELINE CRM & DASHBOARD -->
+        <section id="tab-crm" class="tab-content space-y-3">
             
-            <!-- Financial Pipeline Summary Widget -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div class="bg-gradient-to-r from-slate-900 to-blue-950 text-white p-5 rounded-2xl shadow-md border border-slate-800 md:col-span-2">
-                    <span class="text-xs text-blue-300 font-semibold uppercase tracking-wider block mb-2">Métricas Comerciales B2B</span>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <p class="text-xs text-slate-400 font-medium">Monto Cotizado (En curso)</p>
-                            <p id="totalCotizadoMonto" class="text-xl md:text-2xl font-extrabold text-amber-400">$0</p>
-                        </div>
-                        <div>
-                            <p class="text-xs text-slate-400 font-medium">Ventas Ganadas Total</p>
-                            <p id="totalGanadoMonto" class="text-xl md:text-2xl font-extrabold text-emerald-400">$0</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center">
-                    <h3 class="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5 self-start">
-                        <i class="fa-solid fa-chart-pie text-indigo-600"></i>
-                        Reputación en Cartera
-                    </h3>
-                    <div class="relative h-[120px] w-full flex items-center justify-center">
-                        <canvas id="ratingsChart"></canvas>
-                    </div>
+            <!-- Ratings Chart -->
+            <div class="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm">
+                <h3 class="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
+                    <i class="fa-solid fa-chart-pie text-indigo-600"></i>
+                    Reputación de Locales (Google)
+                </h3>
+                <div class="relative h-[160px] w-full flex items-center justify-center">
+                    <canvas id="ratingsChart"></canvas>
                 </div>
             </div>
 
-            <!-- DESKTOP KANBAN CRM BOARD -->
+            <!-- Pipeline Funnel Stages Cards -->
             <div class="space-y-2">
-                <h3 class="text-sm font-bold text-slate-800">Tablero Kanban de Ventas</h3>
+                <h3 class="text-xs font-bold text-slate-700 px-1">Pipeline de Ventas</h3>
                 
-                <div id="kanbanBoard" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    
-                    <!-- Column 1: Sin Contactar -->
-                    <div class="bg-slate-200/60 p-3 rounded-2xl border border-slate-300/80 flex flex-col min-h-[300px]">
-                        <div class="flex items-center justify-between mb-2 pb-2 border-b border-slate-300">
-                            <span class="text-xs font-bold text-slate-700">⏳ Sin Contactar</span>
-                            <span id="stagePendiente" class="bg-slate-300 text-slate-800 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
-                        </div>
-                        <div id="kanban-Pendiente" class="space-y-2 flex-1 overflow-y-auto custom-scroll pr-1"></div>
+                <div id="pipelineStages" class="grid grid-cols-2 gap-2 text-xs">
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <span class="text-[10px] text-slate-400 font-semibold block">⏳ Pendientes</span>
+                        <span id="stagePendiente" class="text-base font-bold text-slate-700">0</span>
                     </div>
-
-                    <!-- Column 2: Contactados -->
-                    <div class="bg-blue-50/80 p-3 rounded-2xl border border-blue-200 flex flex-col min-h-[300px]">
-                        <div class="flex items-center justify-between mb-2 pb-2 border-b border-blue-200">
-                            <span class="text-xs font-bold text-blue-800">📩 Contactados</span>
-                            <span id="stageContactado" class="bg-blue-200 text-blue-900 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
-                        </div>
-                        <div id="kanban-Contactado" class="space-y-2 flex-1 overflow-y-auto custom-scroll pr-1"></div>
+                    <div class="bg-blue-50 p-3 rounded-xl border border-blue-200">
+                        <span class="text-[10px] text-blue-600 font-semibold block">📩 Contactados</span>
+                        <span id="stageContactado" class="text-base font-bold text-blue-800">0</span>
                     </div>
-
-                    <!-- Column 3: En Cotización -->
-                    <div class="bg-amber-50/80 p-3 rounded-2xl border border-amber-200 flex flex-col min-h-[300px]">
-                        <div class="flex items-center justify-between mb-2 pb-2 border-b border-amber-200">
-                            <span class="text-xs font-bold text-amber-900">🔥 En Cotización</span>
-                            <span id="stageInteresado" class="bg-amber-200 text-amber-950 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
-                        </div>
-                        <div id="kanban-Interesado" class="space-y-2 flex-1 overflow-y-auto custom-scroll pr-1"></div>
+                    <div class="bg-amber-50 p-3 rounded-xl border border-amber-200">
+                        <span class="text-[10px] text-amber-700 font-semibold block">🔥 En Cotización</span>
+                        <span id="stageInteresado" class="text-base font-bold text-amber-900">0</span>
                     </div>
-
-                    <!-- Column 4: Ganados -->
-                    <div class="bg-emerald-50/80 p-3 rounded-2xl border border-emerald-200 flex flex-col min-h-[300px]">
-                        <div class="flex items-center justify-between mb-2 pb-2 border-b border-emerald-200">
-                            <span class="text-xs font-bold text-emerald-900">✅ Clientes Ganados</span>
-                            <span id="stageGanado" class="bg-emerald-200 text-emerald-950 text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
-                        </div>
-                        <div id="kanban-Ganado" class="space-y-2 flex-1 overflow-y-auto custom-scroll pr-1"></div>
+                    <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-200">
+                        <span class="text-[10px] text-emerald-700 font-semibold block">✅ Clientes Ganados</span>
+                        <span id="stageGanado" class="text-base font-bold text-emerald-900">0</span>
                     </div>
-
                 </div>
             </div>
         </section>
 
         <!-- TAB 5: REGISTRO DE VISITAS TERRENO -->
-        <section id="tab-visitas" class="tab-content space-y-4">
-            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <section id="tab-visitas" class="tab-content space-y-3">
+            <div class="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
                 <div>
-                    <h3 class="text-sm font-bold text-slate-800">Bitácora de Visitas en Terreno</h3>
-                    <p class="text-xs text-slate-500">Registro histórico de reuniones presenciales y muestras</p>
+                    <h3 class="text-xs font-bold text-slate-800">Bitácora de Visitas</h3>
+                    <p class="text-[10px] text-slate-400">Historial de terreno e hitos</p>
                 </div>
-                <button onclick="openCheckinModal()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 py-2 rounded-xl font-semibold shadow-md touch-active flex items-center gap-1.5">
-                    <i class="fa-solid fa-plus"></i> Registrar Visita
+                <button onclick="openCheckinModal()" class="bg-blue-600 text-white text-xs px-3 py-1.5 rounded-xl font-semibold shadow-md touch-active flex items-center gap-1">
+                    <i class="fa-solid fa-plus"></i> Nueva Visita
                 </button>
             </div>
 
             <!-- Visits Timeline List -->
-            <div id="visitasListContainer" class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div class="col-span-full bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
-                    <i class="fa-solid fa-clipboard-user text-3xl mb-2 text-slate-300 block"></i>
-                    Aún no se han registrado reuniones en terreno.
+            <div id="visitasListContainer" class="space-y-2">
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
+                    <i class="fa-solid fa-clipboard-user text-2xl mb-1 text-slate-300 block"></i>
+                    Aún no se han registrado visitas en terreno hoy.
                 </div>
             </div>
         </section>
@@ -452,15 +316,15 @@
     </main>
 
     <!-- MOBILE FIXED BOTTOM NAVIGATION BAR -->
-    <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md text-slate-400 border-t border-slate-800 z-40 safe-bottom">
-        <div class="grid grid-cols-5 text-center text-[10px] py-2">
+    <nav class="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md text-slate-400 border-t border-slate-800 z-40 safe-bottom">
+        <div class="max-w-md mx-auto grid grid-cols-5 text-center text-[10px] py-2">
             <button onclick="switchTab('buscar')" id="nav-buscar" class="nav-btn text-blue-400 flex flex-col items-center gap-1 touch-active">
                 <i class="fa-solid fa-magnifying-glass text-base"></i>
                 <span class="font-medium">Buscar</span>
             </button>
-            <button onclick="switchTab('cartera')" id="nav-cartera" class="nav-btn flex flex-col items-center gap-1 touch-active">
-                <i class="fa-solid fa-address-book text-base"></i>
-                <span class="font-medium">Cartera</span>
+            <button onclick="switchTab('lista')" id="nav-lista" class="nav-btn flex flex-col items-center gap-1 touch-active">
+                <i class="fa-solid fa-list-check text-base"></i>
+                <span class="font-medium">Lista</span>
             </button>
             <button onclick="switchTab('mapa')" id="nav-mapa" class="nav-btn flex flex-col items-center gap-1 touch-active">
                 <i class="fa-solid fa-map-location-dot text-base"></i>
@@ -477,171 +341,33 @@
         </div>
     </nav>
 
-    <!-- MODAL: DETALLE / EDICIÓN FICHA CLIENTE CRM -->
-    <div id="modalDetalleCliente" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 hidden overflow-y-auto">
-        <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-100 relative my-auto max-h-[90vh] flex flex-col">
-            <button onclick="closeModalDetalleCliente()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
-                <i class="fa-solid fa-xmark text-lg"></i>
-            </button>
-            
-            <div class="flex items-center gap-3 mb-4 shrink-0">
-                <div class="p-3 bg-blue-100 text-blue-600 rounded-xl">
-                    <i class="fa-solid fa-building text-xl"></i>
-                </div>
-                <div>
-                    <h3 id="detailNombre" class="font-bold text-slate-800 text-base leading-tight">Nombre Negocio</h3>
-                    <p id="detailDireccion" class="text-xs text-slate-500">Dirección</p>
-                </div>
-            </div>
-
-            <div class="space-y-3 overflow-y-auto custom-scroll pr-1 flex-1 text-xs">
-                <div class="grid grid-cols-2 gap-2.5">
-                    <div>
-                        <label class="block font-semibold text-slate-600 mb-1">Estado comercial</label>
-                        <select id="editEstado" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-medium focus:outline-none">
-                            <option value="Pendiente">⏳ Sin Contactar</option>
-                            <option value="Contactado">📩 Contactado</option>
-                            <option value="Interesado">🔥 En Cotización</option>
-                            <option value="Ganado">✅ Cliente Ganado</option>
-                            <option value="Perdido">❌ No Interesado</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block font-semibold text-slate-600 mb-1">Nombre Contacto</label>
-                        <input type="text" id="editContactoNombre" placeholder="Ej: Don Pedro" 
-                               class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-2.5">
-                    <div>
-                        <label class="block font-semibold text-slate-600 mb-1">Teléfono</label>
-                        <input type="text" id="editTelefono" placeholder="+569..." 
-                               class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono">
-                    </div>
-                    <div>
-                        <label class="block font-semibold text-slate-600 mb-1">Monto Cotizado ($)</label>
-                        <input type="number" id="editMontoCotizado" placeholder="0" 
-                               class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold">
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block font-semibold text-slate-600 mb-1">Próxima Acción / Compromiso</label>
-                    <input type="text" id="editProximaAccion" placeholder="Ej: Llamar el jueves para enviar muestras" 
-                           class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-
-                <div class="pt-3 border-t border-slate-100">
-                    <label class="block font-bold text-slate-700 mb-1 flex justify-between items-center">
-                        <span><i class="fa-solid fa-comments text-blue-600 mr-1"></i> Bitácora de Comentarios</span>
-                    </label>
-
-                    <div id="detailNotasLista" class="space-y-1.5 max-h-36 overflow-y-auto custom-scroll mb-2 bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-[11px]">
-                        <p class="text-slate-400 text-center">Sin notas registradas</p>
-                    </div>
-
-                    <div class="flex gap-2">
-                        <input type="text" id="nuevaNotaInput" placeholder="Añadir nota sobre la reunión..." 
-                               class="flex-1 p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <button onclick="agregarNotaAClienteActual()" class="bg-blue-600 hover:bg-blue-700 text-white px-3.5 rounded-xl text-xs font-semibold touch-active">
-                            Añadir
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="pt-4 border-t border-slate-100 mt-3 flex items-center justify-between shrink-0 gap-2">
-                <button onclick="eliminarClienteActual()" class="text-rose-600 hover:bg-rose-50 px-3 py-2 rounded-xl text-xs font-semibold border border-rose-100 touch-active">
-                    <i class="fa-solid fa-trash mr-1"></i> Eliminar
-                </button>
-                <div class="flex gap-2">
-                    <button onclick="closeModalDetalleCliente()" class="px-4 py-2 text-xs text-slate-600 hover:bg-slate-100 rounded-xl">Cancelar</button>
-                    <button onclick="guardarCambiosClienteModal()" class="px-5 py-2 text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md touch-active">
-                        Guardar Cambios
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL: AGREGAR NUEVO CLIENTE MANUALMENTE -->
-    <div id="modalNuevoCliente" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 hidden">
-        <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-100 relative">
-            <button onclick="closeModalNuevoCliente()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
-                <i class="fa-solid fa-xmark text-lg"></i>
-            </button>
-            
-            <div class="flex items-center gap-3 mb-4">
-                <div class="p-2.5 bg-emerald-100 text-emerald-700 rounded-xl">
-                    <i class="fa-solid fa-user-plus text-lg"></i>
-                </div>
-                <div>
-                    <h3 class="font-bold text-slate-800 text-sm">Nuevo Cliente Manual</h3>
-                    <p class="text-[11px] text-slate-400">Guardar prospecto directo</p>
-                </div>
-            </div>
-
-            <div class="space-y-3 text-xs">
-                <div>
-                    <label class="block font-semibold text-slate-600 mb-1">Nombre del Negocio *</label>
-                    <input type="text" id="nuevoNombre" placeholder="Ej: Pastelería Doña Rosa" 
-                           class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-
-                <div>
-                    <label class="block font-semibold text-slate-600 mb-1">Dirección / Comuna</label>
-                    <input type="text" id="nuevoDireccion" placeholder="Ej: Av. Italia 1250, Providencia" 
-                           class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="block font-semibold text-slate-600 mb-1">Teléfono</label>
-                        <input type="text" id="nuevoTelefono" placeholder="+569..." 
-                               class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono">
-                    </div>
-                    <div>
-                        <label class="block font-semibold text-slate-600 mb-1">Persona Contacto</label>
-                        <input type="text" id="nuevoContacto" placeholder="Ej: Juan Pérez" 
-                               class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                </div>
-
-                <button onclick="guardarClienteNuevoManual()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl text-xs shadow-md touch-active mt-2">
-                    Guardar en Cartera
-                </button>
-            </div>
-        </div>
-    </div>
-
     <!-- MODAL: CHECK-IN DE TERRENO -->
     <div id="checkinModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-100 relative">
-            <button onclick="closeCheckinModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-4 shadow-2xl border border-slate-100 relative">
+            <button onclick="closeCheckinModal()" class="absolute top-3.5 right-3.5 text-slate-400 hover:text-slate-600">
                 <i class="fa-solid fa-xmark text-lg"></i>
             </button>
             
-            <div class="flex items-center gap-3 mb-3">
-                <div class="p-2.5 bg-blue-100 text-blue-600 rounded-xl">
-                    <i class="fa-solid fa-location-dot text-lg"></i>
+            <div class="flex items-center gap-2.5 mb-3">
+                <div class="p-2 bg-blue-100 text-blue-600 rounded-xl">
+                    <i class="fa-solid fa-location-dot text-base"></i>
                 </div>
                 <div>
                     <h3 class="font-bold text-slate-800 text-sm">Registrar Visita Presencial</h3>
-                    <p class="text-[11px] text-slate-400">Marcar hito comercial</p>
+                    <p class="text-[10px] text-slate-400">Marcar hito en terreno</p>
                 </div>
             </div>
 
-            <div class="space-y-3 text-xs">
+            <div class="space-y-2.5">
                 <div>
-                    <label class="block font-semibold text-slate-600 mb-1">Nombre del Local / Cliente</label>
+                    <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">Nombre del Local / Cliente</label>
                     <input type="text" id="visitNombre" placeholder="Ej: Pastelería Dulce Amor" 
-                           class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                           class="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
 
                 <div>
-                    <label class="block font-semibold text-slate-600 mb-1">Resultado de la reunión</label>
-                    <select id="visitResultado" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none">
+                    <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">Resultado de la reunión</label>
+                    <select id="visitResultado" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none">
                         <option value="Contacto inicial realizado">🤝 Contacto inicial realizado</option>
                         <option value="Muestras entregadas">📦 Muestras de Packaging entregadas</option>
                         <option value="Solicita cotización personalizada">📝 Solicita Cotización</option>
@@ -650,13 +376,13 @@
                 </div>
 
                 <div>
-                    <label class="block font-semibold text-slate-600 mb-1">Notas / Acuerdos</label>
+                    <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">Notas / Acuerdos</label>
                     <textarea id="visitNotas" rows="2" placeholder="Ej: Interesados en 500 cajas con logo dorado..." 
-                              class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                              class="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
                 </div>
 
-                <button onclick="guardarVisitaTerreno()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl text-xs shadow-md touch-active">
-                    Guardar Check-In de Visita
+                <button onclick="guardarVisitaTerreno()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-3 rounded-xl text-xs shadow-md touch-active">
+                    Guardar Check-In con GPS
                 </button>
             </div>
         </div>
@@ -664,623 +390,348 @@
 
     <!-- MODAL: GOOGLE API KEY CONFIG -->
     <div id="apiKeyModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-2xl max-w-sm w-full p-5 shadow-2xl border border-slate-100 relative">
-            <button onclick="closeApiKeyModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-4 shadow-2xl border border-slate-100 relative">
+            <button onclick="closeApiKeyModal()" class="absolute top-3.5 right-3.5 text-slate-400 hover:text-slate-600">
                 <i class="fa-solid fa-xmark text-lg"></i>
             </button>
             
-            <div class="flex items-center gap-3 mb-3">
-                <div class="p-2.5 bg-amber-100 text-amber-700 rounded-xl">
-                    <i class="fa-solid fa-key text-lg"></i>
+            <div class="flex items-center gap-2.5 mb-2">
+                <div class="p-2 bg-amber-100 text-amber-700 rounded-xl">
+                    <i class="fa-solid fa-key text-base"></i>
                 </div>
                 <div>
                     <h3 class="font-bold text-slate-800 text-sm">Google API Key</h3>
-                    <p class="text-[11px] text-slate-400">Places API (New)</p>
+                    <p class="text-[10px] text-slate-400">Places API (New)</p>
                 </div>
             </div>
 
-            <p class="text-xs text-slate-600 mb-3 leading-relaxed">
-                Ingresa tu API Key de Google Cloud para realizar búsquedas en vivo de locales reales en la zona.
+            <p class="text-[11px] text-slate-600 mb-3 leading-tight">
+                Ingresa tu API Key de Google Cloud para realizar búsquedas en vivo de locales reales.
             </p>
 
             <input type="text" id="userApiKeyInput" placeholder="AIzaSy..." 
-                   class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+                   class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3">
 
             <div class="flex items-center justify-end gap-2">
-                <button onclick="closeApiKeyModal()" class="px-4 py-2 text-xs text-slate-600 hover:bg-slate-100 rounded-xl">Cancelar</button>
-                <button onclick="saveApiKey()" class="px-4 py-2 text-xs bg-blue-600 text-white rounded-xl font-semibold shadow-md">Guardar</button>
+                <button onclick="closeApiKeyModal()" class="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-xl">Cancelar</button>
+                <button onclick="saveApiKey()" class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-xl font-semibold shadow-md">Guardar</button>
             </div>
         </div>
     </div>
 
-    <!-- FIREBASE INITIALIZATION MODULE -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'b2b-packaging-crm';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' 
-            ? JSON.parse(__firebase_config) 
-            : { apiKey: "demo", authDomain: "demo", projectId: "demo" };
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-
-        let currentUser = null;
-
-        async function initAuth() {
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (e) {
-                console.warn("Auth initial error, using anonymous fallback:", e);
-                try { await signInAnonymously(auth); } catch(err) {}
-            }
-        }
-
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                currentUser = user;
-                if (typeof window.updateSyncStatus === 'function') {
-                    window.updateSyncStatus('connected', '🟢 Nube Activa');
-                }
-                escucharFirestore();
-            } else {
-                if (typeof window.updateSyncStatus === 'function') {
-                    window.updateSyncStatus('offline', '🟡 Guardado Local');
-                }
-            }
-        });
-
-        function escucharFirestore() {
-            if (!currentUser) return;
-
-            // 1. Prospectos Collection
-            const prospectosRef = collection(db, 'artifacts', appId, 'public', 'data', 'prospectos');
-            onSnapshot(prospectosRef, (snapshot) => {
-                const list = [];
-                snapshot.forEach((docSnap) => {
-                    list.push({ id: docSnap.id, ...docSnap.data() });
-                });
-                window.carteraClientes = list;
-                localStorage.setItem('b2b_cartera_cache', JSON.stringify(list));
-                window.renderizarCarteraYMetricas();
-            }, (error) => {
-                console.error("Firestore error prospectos:", error);
-                if (typeof window.updateSyncStatus === 'function') {
-                    window.updateSyncStatus('offline', '🟡 Guardado Local');
-                }
-            });
-
-            // 2. Visitas Terreno Collection
-            const visitasRef = collection(db, 'artifacts', appId, 'public', 'data', 'visitas');
-            onSnapshot(visitasRef, (snapshot) => {
-                const listV = [];
-                snapshot.forEach((docSnap) => {
-                    listV.push({ id: docSnap.id, ...docSnap.data() });
-                });
-                listV.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
-                window.visitasTerreno = listV;
-                localStorage.setItem('b2b_visitas_cache', JSON.stringify(listV));
-                window.renderizarVisitas();
-            }, (error) => {
-                console.error("Firestore error visitas:", error);
-            });
-        }
-
-        window.dbGuardarCliente = async function(clienteData) {
-            if (!clienteData.id) clienteData.id = 'c_' + Date.now();
-            
-            const index = window.carteraClientes.findIndex(c => c.id === clienteData.id);
-            if (index >= 0) window.carteraClientes[index] = clienteData;
-            else window.carteraClientes.unshift(clienteData);
-            
-            localStorage.setItem('b2b_cartera_cache', JSON.stringify(window.carteraClientes));
-            window.renderizarCarteraYMetricas();
-
-            if (currentUser && db) {
-                try {
-                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'prospectos', clienteData.id);
-                    await setDoc(docRef, clienteData, { merge: true });
-                } catch(e) {
-                    console.error("Error guardando cliente en Firestore:", e);
-                }
-            }
-        };
-
-        window.dbEliminarCliente = async function(clienteId) {
-            window.carteraClientes = window.carteraClientes.filter(c => c.id !== clienteId);
-            localStorage.setItem('b2b_cartera_cache', JSON.stringify(window.carteraClientes));
-            window.renderizarCarteraYMetricas();
-
-            if (currentUser && db) {
-                try {
-                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'prospectos', clienteId);
-                    await deleteDoc(docRef);
-                } catch(e) {
-                    console.error("Error eliminando cliente en Firestore:", e);
-                }
-            }
-        };
-
-        window.dbGuardarVisita = async function(visitaData) {
-            if (!visitaData.id) visitaData.id = 'v_' + Date.now();
-            window.visitasTerreno.unshift(visitaData);
-            localStorage.setItem('b2b_visitas_cache', JSON.stringify(window.visitasTerreno));
-            window.renderizarVisitas();
-
-            if (currentUser && db) {
-                try {
-                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'visitas', visitaData.id);
-                    await setDoc(docRef, visitaData, { merge: true });
-                } catch(e) {
-                    console.error("Error guardando visita en Firestore:", e);
-                }
-            }
-        };
-
-        initAuth();
-    </script>
-
-    <!-- CORE LOGIC APPLICATION SCRIPT -->
     <script>
-        window.updateSyncStatus = function(status, text) {
-            const mobileBadge = document.getElementById('syncBadge');
-            const deskBadge = document.getElementById('syncBadgeDesktop');
-            [mobileBadge, deskBadge].forEach(badge => {
-                if (!badge) return;
-                badge.innerText = text;
-                if (status === 'connected') {
-                    badge.className = 'bg-emerald-500/20 text-emerald-300 text-[10px] px-2 py-0.5 rounded font-mono font-medium';
-                } else if (status === 'offline') {
-                    badge.className = 'bg-amber-500/20 text-amber-300 text-[10px] px-2 py-0.5 rounded font-mono font-medium';
-                } else {
-                    badge.className = 'bg-slate-800 text-slate-300 text-[10px] px-2 py-0.5 rounded font-mono font-medium';
-                }
-            });
-        };
-
-        window.switchTab = function(tabId) {
-            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-            const targetTab = document.getElementById(`tab-${tabId}`);
-            if (targetTab) targetTab.classList.add('active');
-
-            // Update Desktop Nav UI
-            document.querySelectorAll('.desk-nav-btn').forEach(btn => {
-                btn.classList.remove('text-blue-400', 'bg-slate-800/90', 'font-semibold');
-                btn.classList.add('text-slate-400');
-            });
-            const deskBtn = document.getElementById(`desk-nav-${tabId}`);
-            if (deskBtn) {
-                deskBtn.classList.remove('text-slate-400');
-                deskBtn.classList.add('text-blue-400', 'bg-slate-800/90', 'font-semibold');
-            }
-
-            // Update Mobile Nav UI
-            document.querySelectorAll('.nav-btn').forEach(btn => {
-                btn.classList.remove('text-blue-400');
-                btn.classList.add('text-slate-400');
-            });
-            const mobileBtn = document.getElementById(`nav-${tabId}`);
-            if (mobileBtn) {
-                mobileBtn.classList.remove('text-slate-400');
-                mobileBtn.classList.add('text-blue-400');
-            }
-
-            if (tabId === 'mapa') {
-                setTimeout(() => {
-                    if (leafletMapInstance) {
-                        leafletMapInstance.invalidateSize();
-                    } else {
-                        initMap();
-                    }
-                }, 100);
-            }
-        };
-
-        window.quickSearch = function(rubro, ciudad) {
-            document.getElementById('rubro').value = rubro;
-            document.getElementById('ciudad').value = ciudad;
-            ejecutarProspeccion();
-        };
-
-        window.ejecutarProspeccion = function(esSiguientePagina = false) {
-            const rubroInput = document.getElementById('rubro').value.trim();
-            const ciudadInput = document.getElementById('ciudad').value.trim();
-            const motorSelect = document.getElementById('motorBusquedaSelect').value;
-
-            if (!rubroInput && !ciudadInput) {
-                showToast('Ingresa un rubro o comuna para buscar', 'warning');
-                return;
-            }
-
-            if (!esSiguientePagina) {
-                paginaActualBusqueda = 1;
-                busquedaResultados = [];
-            }
-
-            showStatus('Buscando prospectos comerciales...');
-
-            if (motorSelect === 'google') {
-                buscarConGooglePlaces(rubroInput, ciudadInput, esSiguientePagina);
-            } else if (motorSelect === 'osm') {
-                buscarConNominatim(rubroInput, ciudadInput, esSiguientePagina);
-            } else if (motorSelect === 'sim') {
-                buscarConModoSimulado(rubroInput, ciudadInput, esSiguientePagina);
-            } else {
-                if (window.isGoogleMapsLoaded) {
-                    buscarConGooglePlaces(rubroInput, ciudadInput, esSiguientePagina);
-                } else {
-                    buscarConNominatim(rubroInput, ciudadInput, esSiguientePagina);
-                }
-            }
-        };
-
-        window.cargarMasResultados = function() {
-            ejecutarProspeccion(true);
-        };
-
-        window.obtenerUbicacionGPS = function() {
-            if (!navigator.geolocation) {
-                showToast('Geolocalización no soportada en este dispositivo', 'warning');
-                return;
-            }
-            showStatus('Obteniendo posición GPS...');
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    hideStatus();
-                    const lat = pos.coords.latitude;
-                    const lng = pos.coords.longitude;
-                    if (leafletMapInstance) {
-                        leafletMapInstance.setView([lat, lng], 14);
-                        L.circle([lat, lng], { radius: 300, color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.2 }).addTo(leafletMapInstance);
-                    }
-                    showToast('Ubicación GPS fijada correctamente', 'success');
-                },
-                (err) => {
-                    hideStatus();
-                    showToast('No se pudo obtener la posición GPS', 'warning');
-                },
-                { enableHighAccuracy: true, timeout: 8000 }
-            );
-        };
-
-        function initMap() {
-            if (leafletMapInstance) return;
-            const mapContainer = document.getElementById('mapCanvas');
-            if (!mapContainer || typeof L === 'undefined') return;
-
-            leafletMapInstance = L.map('mapCanvas').setView([-33.4350, -70.6150], 13);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '© OpenStreetMap'
-            }).addTo(leafletMapInstance);
-
-            actualizarMapaCanvas();
-        }
-
-        let busquedaResultados = [];
-        let googlePaginationObj = null;
-        let paginaActualBusqueda = 1;
-        let simTodosResultados = [];
-
-        window.carteraClientes = JSON.parse(localStorage.getItem('b2b_cartera_cache') || '[]');
-        window.visitasTerreno = JSON.parse(localStorage.getItem('b2b_visitas_cache') || '[]');
-        
-        let clienteSeleccionadoModal = null;
+        let clientesData = [];
+        let filteredData = [];
         let isGoogleMapsLoaded = false;
         let leafletMapInstance = null;
         let mapMarkers = [];
         let chartInstance = null;
 
-        window.onload = function() {
-            renderizarCarteraYMetricas();
-            renderizarVisitas();
-            initMap();
+        const LOCAL_STORAGE_CRM_KEY = 'b2b_packaging_crm_status_v2';
+        const LOCAL_STORAGE_VISITAS_KEY = 'b2b_packaging_visitas_v1';
+        
+        let crmStatuses = JSON.parse(localStorage.getItem(LOCAL_STORAGE_CRM_KEY) || '{}');
+        let visitasTerreno = JSON.parse(localStorage.getItem(LOCAL_STORAGE_VISITAS_KEY) || '[]');
 
-            if (localStorage.getItem('b2b_gmaps_key')) {
-                const engineBadge = document.getElementById('engineBadge');
-                if (engineBadge) engineBadge.innerText = 'Google Places Active';
-            }
+        // Chilean Fallback Database for Mobile Demo Mode
+        const databaseDemoChile = [
+            { id: "demo_1", nombre: "Pastelería Dulce Amor", rubro: "pastelería", ciudad: "Providencia", direccion: "Av. Providencia 1420, Providencia", telefono: "+56922345678", website: "https://dulceamor.cl", rating: 4.8, lat: -33.4265, lng: -70.6130 },
+            { id: "demo_2", nombre: "Repostería La Artesanal", rubro: "pastelería", ciudad: "Providencia", direccion: "Manuel Montt 450, Providencia", telefono: "+56923456789", website: "https://laartesanalbakery.cl", rating: 4.6, lat: -33.4320, lng: -70.6210 },
+            { id: "demo_3", nombre: "Bakery & Co. Gourmet", rubro: "pastelería", ciudad: "Providencia", direccion: "Av. Pedro de Valdivia 880, Providencia", telefono: "+56987654321", website: "https://bakeryandco.cl", rating: 4.9, lat: -33.4310, lng: -70.6090 },
+            { id: "demo_4", nombre: "Chocolatería Boutique Cacao", rubro: "pastelería", ciudad: "Providencia", direccion: "Eliodoro Yáñez 1920, Providencia", telefono: "+56928901234", website: "", rating: 4.2, lat: -33.4350, lng: -70.6050 },
+            { id: "demo_5", nombre: "Joyería Aurum & Co.", rubro: "joyería", ciudad: "Las Condes", direccion: "Av. Apoquindo 4800, Las Condes", telefono: "+56924567890", website: "https://aurumjoyeria.cl", rating: 4.9, lat: -33.4110, lng: -70.5750 },
+            { id: "demo_6", nombre: "Boutique Moda Italiana", rubro: "boutique", ciudad: "Viña del Mar", direccion: "Av. Libertad 940, Viña del Mar", telefono: "+56932268901", website: "https://modaitaliana.cl", rating: 4.5, lat: -32.9980, lng: -71.5510 }
+        ];
+
+        window.onload = function() {
+            // Set today date
+            const options = { weekday: 'short', day: 'numeric', month: 'short' };
+            document.getElementById('todayDateLabel').innerText = new Date().toLocaleDateString('es-CL', options);
+
+            checkStoredApiKey();
+            initChart([0, 0, 0, 0]);
+            initLeafletMap(-33.4489, -70.6693, 13);
+            
+            ejecutarProspeccion();
+            renderizarVisitas();
         };
 
-        function generarSimulados(rubroInput, ciudadInput) {
-            const cleanRubro = (rubroInput || 'Comercio').trim();
-            const cleanCiudad = (ciudadInput || 'Santiago').trim();
-            const rubroLower = cleanRubro.toLowerCase();
-            const rubroCap = cleanRubro.charAt(0).toUpperCase() + cleanRubro.slice(1);
-
-            const variantesChile = [
-                "San José", "La Artesanal", "Dulce Amor", "Santa Rosa", "Don Pedro",
-                "Italia", "El Laurel", "Providencia", "La Celeste", "Gourmet & Co.",
-                "Maison", "Aurum", "Delicacies", "Central", "Nativo",
-                "Del Subercaseaux", "Verde Oliva", "D'Elite", "Austral", "San Francisco",
-                "El Canelo", "Montegrande", "Boutique", "La Condesa", "Alborada"
-            ];
-
-            const patrones = [
-                (r, v) => `${r} ${v}`,
-                (r, v) => `Taller ${v}`,
-                (r, v) => `${v} ${r}`,
-                (r, v) => `Boutique ${v}`,
-                (r, v) => `Casa ${v}`,
-                (r, v) => `Atelier ${v}`,
-                (r, v) => `Distribuidora ${v}`,
-                (r, v) => `Emporio ${v}`
-            ];
-
-            let baseLat = -33.4350;
-            let baseLng = -70.6150;
-            const cLower = cleanCiudad.toLowerCase();
-            if (cLower.includes('las condes')) { baseLat = -33.4110; baseLng = -70.5750; }
-            else if (cLower.includes('providencia')) { baseLat = -33.4260; baseLng = -70.6110; }
-            else if (cLower.includes('viña') || cLower.includes('vina')) { baseLat = -33.0245; baseLng = -71.5518; }
-            else if (cLower.includes('conce') || cLower.includes('concepción')) { baseLat = -36.8270; baseLng = -73.0503; }
-            else if (cLower.includes('antofagasta')) { baseLat = -23.6509; baseLng = -70.3975; }
-            else if (cLower.includes('valparaíso') || cLower.includes('valparaiso')) { baseLat = -33.0472; baseLng = -71.6127; }
-            else if (cLower.includes('temuco')) { baseLat = -38.7359; baseLng = -72.5904; }
-            else if (cLower.includes('la serena')) { baseLat = -29.9027; baseLng = -71.2519; }
-
-            const resultados = [];
-            const nombresUsados = new Set();
-
-            for (let i = 1; i <= 60; i++) {
-                const varNombre = variantesChile[(i - 1) % variantesChile.length];
-                const patronFn = patrones[(i - 1) % patrones.length];
-                
-                let nombreFinal = patronFn(rubroCap, varNombre);
-                
-                // Remove consecutive duplicate words
-                const palabras = nombreFinal.split(' ');
-                const palabrasUnicas = [];
-                palabras.forEach(p => {
-                    if (palabrasUnicas.length === 0 || palabrasUnicas[palabrasUnicas.length - 1].toLowerCase() !== p.toLowerCase()) {
-                        palabrasUnicas.push(p);
-                    }
-                });
-                nombreFinal = palabrasUnicas.join(' ');
-                if (i > 30) nombreFinal += ` (${cleanCiudad})`;
-
-                if (nombresUsados.has(nombreFinal)) {
-                    nombreFinal += ` #${i}`;
-                }
-                nombresUsados.add(nombreFinal);
-
-                const numCalle = 110 + (i * 35);
-                const latJitter = Math.sin(i * 1.8) * 0.022;
-                const lngJitter = Math.cos(i * 1.8) * 0.022;
-
-                resultados.push({
-                    id: `sim_${i}_${Date.now()}`,
-                    nombre: nombreFinal,
-                    rubro: cleanRubro,
-                    ciudad: cleanCiudad,
-                    direccion: `Av. ${cleanCiudad} #${numCalle}`,
-                    telefono: `+569${80000000 + i * 1147}`,
-                    website: i % 2 === 0 ? `https://www.${rubroLower.replace(/[^a-z]/g,'')}${i}.cl` : '',
-                    rating: (3.9 + (i % 11) * 0.1).toFixed(1),
-                    lat: Number((baseLat + latJitter).toFixed(4)),
-                    lng: Number((baseLng + lngJitter).toFixed(4)),
-                    estado: "Pendiente"
-                });
-            }
-            return resultados;
-        }
-
-        async function buscarConNominatim(rubroInput, ciudadInput, esSiguientePagina) {
-            try {
-                const query = `${rubroInput} ${ciudadInput} Chile`;
-                const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=50`;
-                const response = await fetch(url);
-                
-                if (!response.ok) throw new Error('Error al conectar con OpenStreetMap');
-                const data = await response.json();
-
-                let nuevos = [];
-                if (data && data.length > 0) {
-                    nuevos = data.map((item, idx) => {
-                        let rawName = item.name || (item.display_name ? item.display_name.split(',')[0] : rubroInput);
-                        rawName = rawName.replace(/\s+/g, ' ').trim();
-                        
-                        // Prevent duplicated words in rawName
-                        const words = rawName.split(' ');
-                        const cleanWords = words.filter((w, i) => i === 0 || w.toLowerCase() !== words[i-1].toLowerCase());
-                        rawName = cleanWords.join(' ');
-
-                        const addrObj = item.address || {};
-                        const street = addrObj.road || addrObj.suburb || addrObj.city_district || ciudadInput;
-                        const houseNum = addrObj.house_number || (100 + idx * 25);
-                        
-                        return {
-                            id: `osm_${item.place_id || idx}_${Date.now()}`,
-                            nombre: rawName,
-                            rubro: rubroInput,
-                            ciudad: ciudadInput,
-                            direccion: `${street} #${houseNum}, ${ciudadInput}`,
-                            telefono: `+569${81000000 + idx * 1234}`,
-                            website: item.extratags?.website || '',
-                            rating: (4.0 + (idx % 10) * 0.1).toFixed(1),
-                            lat: parseFloat(item.lat),
-                            lng: parseFloat(item.lon),
-                            estado: "Pendiente"
-                        };
-                    });
-                }
-
-                if (nuevos.length < 10) {
-                    const complementos = generarSimulados(rubroInput, ciudadInput);
-                    const existingNames = new Set(nuevos.map(n => n.nombre.toLowerCase()));
-                    const compFiltrados = complementos.filter(c => !existingNames.has(c.nombre.toLowerCase()));
-                    nuevos = [...nuevos, ...compFiltrados.slice(0, 30 - nuevos.length)];
-                }
-
-                if (esSiguientePagina || paginaActualBusqueda > 1) {
-                    const paginadorOffset = (paginaActualBusqueda - 1) * 20;
-                    const simsMas = generarSimulados(rubroInput, ciudadInput).slice(paginadorOffset, paginadorOffset + 20);
-                    busquedaResultados = [...busquedaResultados, ...simsMas];
-                    paginaActualBusqueda++;
+        function switchTab(tabName) {
+            const tabs = ['buscar', 'lista', 'mapa', 'crm', 'visitas'];
+            tabs.forEach(t => {
+                const el = document.getElementById(`tab-${t}`);
+                const btn = document.getElementById(`nav-${t}`);
+                if (t === tabName) {
+                    el.classList.add('active');
+                    btn.classList.add('text-blue-400');
+                    btn.classList.remove('text-slate-400');
                 } else {
-                    busquedaResultados = nuevos;
-                    paginaActualBusqueda = 1;
+                    el.classList.remove('active');
+                    btn.classList.remove('text-blue-400');
+                    btn.classList.add('text-slate-400');
                 }
+            });
 
-                hideStatus();
-                renderizarResultadosBusqueda();
-                showToast(`Cargados ${busquedaResultados.length} prospectos en zona`, 'success');
-            } catch (err) {
-                console.warn('OpenStreetMap error, activando respaldo inteligente:', err);
-                buscarConModoSimulado(rubroInput, ciudadInput, esSiguientePagina);
+            // Refresh map view size if opening map tab
+            if (tabName === 'mapa' && leafletMapInstance) {
+                setTimeout(() => {
+                    leafletMapInstance.invalidateSize();
+                    actualizarMapaCanvas();
+                }, 150);
             }
         }
 
-        function buscarConGooglePlaces(rubroInput, ciudadInput, esSiguientePagina) {
-            if (esSiguientePagina && googlePaginationObj && googlePaginationObj.hasNextPage) {
-                showStatus('Cargando siguiente página de Google Places...');
-                googlePaginationObj.nextPage();
+        function obtenerUbicacionGPS() {
+            if (!navigator.geolocation) {
+                showToast('GPS no soportado en este dispositivo', 'warning');
                 return;
             }
 
-            if (!window.isGoogleMapsLoaded || typeof google === 'undefined' || !google.maps || !google.maps.places) {
-                showToast('Google Places API no está activa. Usando motor alternativo...', 'info');
-                buscarConNominatim(rubroInput, ciudadInput, esSiguientePagina);
+            showStatus("Obteniendo posición GPS...");
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    hideStatus();
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+
+                    document.getElementById('ciudad').value = `Mi GPS (${lat.toFixed(3)}, ${lng.toFixed(3)})`;
+                    if (leafletMapInstance) {
+                        leafletMapInstance.setView([lat, lng], 14);
+                    }
+                    showToast('Ubicación GPS capturada con éxito', 'success');
+                    ejecutarProspeccion();
+                },
+                () => {
+                    hideStatus();
+                    showToast('No se obtuvo respuesta del GPS', 'warning');
+                },
+                { enableHighAccuracy: true, timeout: 7000 }
+            );
+        }
+
+        function checkStoredApiKey() {
+            const savedKey = localStorage.getItem('b2b_gmaps_key');
+            if (savedKey && savedKey.trim() !== '') {
+                loadGoogleMapsScript(savedKey.trim());
+            }
+        }
+
+        function loadGoogleMapsScript(key) {
+            const script = document.createElement('script');
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&v=weekly&libraries=places`;
+            script.async = true;
+            script.defer = true;
+            script.onload = () => {
+                isGoogleMapsLoaded = true;
+                document.getElementById('demoModeBadge').innerText = 'API Activa';
+                document.getElementById('demoModeBadge').className = 'bg-emerald-500/20 text-emerald-300 text-[9px] px-1.5 py-0.5 rounded font-mono';
+                document.getElementById('engineBadge').innerText = 'Google Places';
+                showToast('Conectado a Google Places API', 'success');
+            };
+            script.onerror = () => {
+                isGoogleMapsLoaded = false;
+                showToast('Key no válida. Usando modo simulación', 'warning');
+            };
+            document.head.appendChild(script);
+        }
+
+        function initLeafletMap(lat, lng, zoom) {
+            const container = document.getElementById('mapCanvas');
+            container.innerHTML = '';
+
+            if (leafletMapInstance) leafletMapInstance.remove();
+
+            leafletMapInstance = L.map('mapCanvas', { zoomControl: false }).setView([lat, lng], zoom);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(leafletMapInstance);
+
+            // Add small zoom control on top right for mobile touch
+            L.control.zoom({ position: 'topright' }).addTo(leafletMapInstance);
+        }
+
+        function quickSearch(rubro, ciudad) {
+            document.getElementById('rubro').value = rubro;
+            document.getElementById('ciudad').value = ciudad;
+            switchTab('buscar');
+            ejecutarProspeccion();
+        }
+
+        async function ejecutarProspeccion() {
+            const rubroInput = document.getElementById('rubro').value.trim();
+            const ciudadInput = document.getElementById('ciudad').value.trim();
+            
+            if (!rubroInput) {
+                showToast('Ingresa un rubro comercial', 'info');
                 return;
             }
 
+            showStatus(`Consultando locales de "${rubroInput}"...`);
+            clientesData = [];
+
+            if (isGoogleMapsLoaded && typeof google !== 'undefined' && google.maps && google.maps.places) {
+                await buscarConGooglePlaces(rubroInput, ciudadInput);
+            } else {
+                await buscarConModoSimulado(rubroInput, ciudadInput);
+            }
+
+            hideStatus();
+            aplicarFiltros();
+        }
+
+        async function buscarConGooglePlaces(rubroInput, ciudadInput) {
             try {
-                const dummyDiv = document.createElement('div');
-                const service = new google.maps.places.PlacesService(dummyDiv);
+                const { Place } = await google.maps.importLibrary("places");
                 const request = {
-                    query: `${rubroInput} en ${ciudadInput}, Chile`,
+                    textQuery: `${rubroInput} en ${ciudadInput}, Chile`,
+                    fields: ['displayName', 'formattedAddress', 'rating', 'id', 'nationalPhoneNumber', 'websiteURI', 'location'],
+                    maxResultCount: 20,
                     language: 'es-CL'
                 };
 
-                service.textSearch(request, (results, status, pagination) => {
-                    hideStatus();
-                    if (status === google.maps.places.PlacesServiceStatus.OK && results && results.length > 0) {
-                        googlePaginationObj = pagination;
-
-                        const nuevos = results.map(place => ({
-                            id: place.place_id || 'g_' + Math.random(),
-                            nombre: place.name || 'Sin nombre',
-                            direccion: place.formatted_address || 'Sin dirección',
-                            telefono: place.formatted_phone_number || '',
-                            website: place.website || '',
-                            rating: place.rating ? place.rating.toFixed(1) : null,
-                            lat: place.geometry && place.geometry.location ? place.geometry.location.lat() : null,
-                            lng: place.geometry && place.geometry.location ? place.geometry.location.lng() : null,
-                            estado: "Pendiente"
-                        }));
-
-                        if (esSiguientePagina || paginaActualBusqueda > 1) {
-                            busquedaResultados = [...busquedaResultados, ...nuevos];
-                            paginaActualBusqueda++;
-                        } else {
-                            busquedaResultados = nuevos;
-                            paginaActualBusqueda = 1;
-                        }
-
-                        renderizarResultadosBusqueda();
-                        showToast(`Cargados ${busquedaResultados.length} prospectos desde Google Places`, 'success');
-                    } else {
-                        if (!esSiguientePagina) {
-                            buscarConNominatim(rubroInput, ciudadInput, false);
-                        } else {
-                            buscarConModoSimulado(rubroInput, ciudadInput, true);
-                        }
-                    }
-                });
-            } catch (err) {
-                console.warn('Google Places API Error:', err);
-                buscarConNominatim(rubroInput, ciudadInput, esSiguientePagina);
-            }
-        }
-
-        async function buscarConModoSimulado(rubroInput, ciudadInput, esSiguientePagina) {
-            await new Promise(r => setTimeout(r, 200));
-            hideStatus();
-
-            if (!esSiguientePagina || simTodosResultados.length === 0) {
-                simTodosResultados = generarSimulados(rubroInput, ciudadInput);
-                paginaActualBusqueda = 1;
-                busquedaResultados = simTodosResultados.slice(0, 20);
-            } else {
-                paginaActualBusqueda++;
-                const inicio = (paginaActualBusqueda - 1) * 20;
-                const fin = inicio + 20;
-                const nuevos = simTodosResultados.slice(inicio, fin);
-                busquedaResultados = [...busquedaResultados, ...nuevos];
-                if (nuevos.length > 0) {
-                    showToast(`Cargados +${nuevos.length} prospectos (Total: ${busquedaResultados.length})`, 'success');
+                const { places } = await Place.searchByText(request);
+                if (places && places.length > 0) {
+                    places.forEach(place => {
+                        clientesData.push({
+                            id: place.id,
+                            nombre: place.displayName || 'Sin nombre',
+                            direccion: place.formattedAddress || 'Sin dirección',
+                            telefono: place.nationalPhoneNumber || '',
+                            website: place.websiteURI || '',
+                            rating: place.rating || null,
+                            lat: place.location ? place.location.lat() : null,
+                            lng: place.location ? place.location.lng() : null
+                        });
+                    });
                 }
+            } catch (err) {
+                await buscarConModoSimulado(rubroInput, ciudadInput);
             }
-
-            renderizarResultadosBusqueda();
         }
 
-        function renderizarResultadosBusqueda() {
-            const container = document.getElementById('searchResultsContainer');
+        async function buscarConModoSimulado(rubroInput, ciudadInput) {
+            await new Promise(r => setTimeout(r, 350));
+            
+            const rClean = rubroInput.toLowerCase();
+            const cClean = ciudadInput.toLowerCase();
+
+            let resultados = databaseDemoChile.filter(item => {
+                const matchRubro = item.rubro.includes(rClean) || rClean.includes(item.rubro) || rClean.length > 3;
+                const matchCiudad = item.ciudad.toLowerCase().includes(cClean) || cClean.includes(item.ciudad.toLowerCase()) || cClean.length > 3;
+                return matchRubro || matchCiudad;
+            });
+
+            if (resultados.length === 0) {
+                resultados = [
+                    { id: "gen_1", nombre: `${rubroInput} Gourmet ${ciudadInput}`, direccion: `Av. Principal 102, ${ciudadInput}`, telefono: "+56912345678", website: "https://ejemplonegocio.cl", rating: 4.8, lat: -33.4300, lng: -70.6100 },
+                    { id: "gen_2", nombre: `Taller de ${rubroInput} Artesanal`, direccion: `Calle Los Aromos 450, ${ciudadInput}`, telefono: "+56923456789", website: "", rating: 4.3, lat: -33.4350, lng: -70.6150 },
+                    { id: "gen_3", nombre: `Boutique & Packaging ${ciudadInput}`, direccion: `Plaza Mayor 88, ${ciudadInput}`, telefono: "+56987654321", website: "https://boutiquepack.cl", rating: 4.6, lat: -33.4250, lng: -70.6050 }
+                ];
+            }
+
+            clientesData = resultados;
+        }
+
+        function aplicarFiltros() {
+            const filterRatingVal = document.getElementById('filterRating').value;
+            const filterStatusVal = document.getElementById('filterStatus').value;
+
+            filteredData = clientesData.filter(cliente => {
+                const statusActual = crmStatuses[cliente.id] || 'Pendiente';
+                if (filterStatusVal !== 'all' && statusActual !== filterStatusVal) return false;
+
+                if (filterRatingVal === 'high' && (!cliente.rating || cliente.rating < 4.5)) return false;
+                if (filterRatingVal === 'mid' && (!cliente.rating || cliente.rating < 4.0 || cliente.rating >= 4.5)) return false;
+
+                return true;
+            });
+
+            renderizarResultados();
+        }
+
+        function cambiarEstadoCRM(clienteId, nuevoEstado) {
+            crmStatuses[clienteId] = nuevoEstado;
+            localStorage.setItem(LOCAL_STORAGE_CRM_KEY, JSON.stringify(crmStatuses));
+            showToast(`Estado CRM: ${nuevoEstado}`, 'info');
+            actualizarChartYMetricas(clientesData);
+        }
+
+        function renderizarResultados() {
+            const container = document.getElementById('cardsContainer');
             container.innerHTML = '';
 
             const summary = document.getElementById('searchResultSummary');
             const counterText = document.getElementById('counterText');
-            const loadMoreContainer = document.getElementById('loadMoreContainer');
-            const btnLoadMore = document.getElementById('btnLoadMore');
-            const loadMoreBadge = document.getElementById('loadMoreBadge');
-            const noMoreResultsMsg = document.getElementById('noMoreResultsMsg');
 
-            if (busquedaResultados.length === 0) {
+            if (filteredData.length === 0) {
                 summary.classList.add('hidden');
-                if (loadMoreContainer) loadMoreContainer.classList.add('hidden');
                 container.innerHTML = `
-                    <div class="col-span-full bg-white p-12 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
-                        No se encontraron locales en esta búsqueda. Prueba con otro rubro o ciudad.
+                    <div class="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
+                        No hay prospectos que coincidan con los filtros seleccionados.
                     </div>`;
+                actualizarChartYMetricas([]);
                 return;
             }
 
             summary.classList.remove('hidden');
-            counterText.innerHTML = `${busquedaResultados.length} prospectos cargados <span class="text-xs text-emerald-600 font-normal">(Pág. ${paginaActualBusqueda})</span>`;
+            counterText.innerText = `${filteredData.length} prospectos hallados`;
 
-            busquedaResultados.forEach((cliente) => {
-                const yaGuardado = window.carteraClientes.some(c => c.id === cliente.id || c.nombre.toLowerCase() === cliente.nombre.toLowerCase());
+            filteredData.forEach((cliente) => {
+                const statusActual = crmStatuses[cliente.id] || 'Pendiente';
                 const fonoLimpio = (cliente.telefono || '').replace(/\s+/g, '');
-                const pitchMsg = `Hola equipo de ${cliente.nombre}, vi su local en terreno y nos encantaría ofrecerles bolsas y packaging personalizado. ¿Podemos enviarles un catálogo?`;
-                const waLink = fonoLimpio ? `https://wa.me/${fonoLimpio.replace('+', '')}?text=${encodeURIComponent(pitchMsg)}` : '#';
 
+                const pitchMsg = `Hola equipo de ${cliente.nombre}, vi su local en terreno y nos encantaría ofrecerles bolsas y packaging personalizado de excelente calidad para sus productos. ¿Tienen requerimientos que podamos cotizarles?`;
+                
+                const waLink = fonoLimpio 
+                    ? `https://wa.me/${fonoLimpio.replace('+', '')}?text=${encodeURIComponent(pitchMsg)}`
+                    : '#';
+
+                const gmapsNavUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cliente.nombre + ' ' + cliente.direccion)}`;
+
+                // Mobile Card Element
                 const card = document.createElement('div');
-                card.className = "bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between text-xs transition hover:shadow-md";
+                card.className = "bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm space-y-2.5 text-xs";
                 card.innerHTML = `
-                    <div class="space-y-2">
-                        <div class="flex justify-between items-start gap-2">
+                    <div class="flex justify-between items-start gap-2">
+                        <div>
                             <h3 class="font-bold text-slate-800 text-sm leading-tight">${escapeHtml(cliente.nombre)}</h3>
-                            <span class="shrink-0 bg-amber-50 text-amber-800 px-2 py-0.5 rounded-lg font-bold text-[11px] border border-amber-200">
-                                ${cliente.rating ? `${cliente.rating} ⭐` : 'S/I'}
-                            </span>
+                            <p class="text-slate-500 text-[11px] flex items-center gap-1 mt-0.5">
+                                <i class="fa-solid fa-location-dot text-slate-400 text-[10px]"></i>
+                                <span>${escapeHtml(cliente.direccion)}</span>
+                            </p>
                         </div>
-                        <p class="text-slate-500 text-xs flex items-center gap-1.5">
-                            <i class="fa-solid fa-location-dot text-slate-400"></i>
-                            <span>${escapeHtml(cliente.direccion)}</span>
-                        </p>
+                        <span class="shrink-0 bg-amber-50 text-amber-800 px-2 py-0.5 rounded-lg font-bold text-[10px] border border-amber-200">
+                            ${cliente.rating ? `${cliente.rating} ⭐` : 'S/I'}
+                        </span>
                     </div>
 
-                    <div class="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                        <button onclick="guardarProspectoEnCartera('${cliente.id}')" 
-                                class="${yaGuardado ? 'bg-slate-100 text-emerald-700 border border-emerald-200' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md'} font-bold px-3.5 py-2 rounded-xl text-xs touch-active flex items-center gap-1.5">
-                            <i class="fa-solid ${yaGuardado ? 'fa-circle-check text-emerald-600' : 'fa-plus'}"></i>
-                            <span>${yaGuardado ? 'En Cartera' : 'Guardar Cliente'}</span>
-                        </button>
+                    <!-- Quick Details Badges -->
+                    <div class="flex flex-wrap items-center gap-2 text-[11px]">
+                        ${fonoLimpio ? `<a href="tel:${fonoLimpio}" class="text-blue-600 font-mono font-medium flex items-center gap-1"><i class="fa-solid fa-phone text-[10px]"></i> ${escapeHtml(cliente.telefono)}</a>` : '<span class="text-slate-400 text-[10px]">Sin fono</span>'}
+                        ${cliente.website ? `<a href="${cliente.website}" target="_blank" class="text-indigo-600 font-medium flex items-center gap-1"><i class="fa-solid fa-globe text-[10px]"></i> Sitio Web</a>` : ''}
+                    </div>
 
+                    <!-- Actions & Status Selector Bar -->
+                    <div class="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                        <!-- CRM Select -->
+                        <select onchange="cambiarEstadoCRM('${cliente.id}', this.value)" class="bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-[11px] py-1.5 px-2 focus:outline-none font-medium">
+                            <option value="Pendiente" ${statusActual === 'Pendiente' ? 'selected' : ''}>⏳ Sin Contactar</option>
+                            <option value="Contactado" ${statusActual === 'Contactado' ? 'selected' : ''}>📩 Contactado</option>
+                            <option value="Interesado" ${statusActual === 'Interesado' ? 'selected' : ''}>🔥 En Cotización</option>
+                            <option value="Ganado" ${statusActual === 'Ganado' ? 'selected' : ''}>✅ Venta Ganada</option>
+                        </select>
+
+                        <!-- Mobile Action Buttons -->
                         <div class="flex items-center gap-1.5">
+                            <a href="${gmapsNavUrl}" target="_blank" class="bg-slate-100 hover:bg-slate-200 text-slate-700 p-2 rounded-xl text-xs flex items-center justify-center touch-active border border-slate-200" title="Navegar en Mapa">
+                                <i class="fa-solid fa-diamond-turn-right text-blue-600"></i>
+                            </a>
                             ${fonoLimpio ? `
-                            <a href="${waLink}" target="_blank" class="bg-emerald-500 hover:bg-emerald-600 text-white p-2.5 rounded-xl text-xs flex items-center justify-center touch-active" title="WhatsApp">
+                            <a href="${waLink}" target="_blank" class="bg-emerald-500 hover:bg-emerald-600 text-white p-2 rounded-xl text-xs flex items-center justify-center touch-active shadow-sm" title="WhatsApp">
                                 <i class="fa-brands fa-whatsapp text-sm"></i>
                             </a>` : ''}
-                            <button onclick="compartirCliente('${escapeHtml(cliente.nombre)}', '${escapeHtml(cliente.direccion)}', '${fonoLimpio}')" class="bg-blue-600 hover:bg-blue-700 text-white p-2.5 rounded-xl text-xs flex items-center justify-center touch-active" title="Compartir Ficha">
+                            <button onclick="compartirCliente('${escapeHtml(cliente.nombre)}', '${escapeHtml(cliente.direccion)}', '${fonoLimpio}')" class="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-xl text-xs flex items-center justify-center touch-active shadow-sm" title="Compartir Ficha">
                                 <i class="fa-solid fa-share-nodes"></i>
                             </button>
                         </div>
@@ -1289,214 +740,39 @@
                 container.appendChild(card);
             });
 
-            // Handle Pagination Load More Visibility
-            let hayMas = false;
-            if (isGoogleMapsLoaded && googlePaginationObj) {
-                hayMas = googlePaginationObj.hasNextPage;
-            } else {
-                hayMas = (paginaActualBusqueda * 20) < simTodosResultados.length;
-            }
-
-            if (loadMoreContainer) {
-                loadMoreContainer.classList.remove('hidden');
-                if (hayMas) {
-                    if (btnLoadMore) btnLoadMore.classList.remove('hidden');
-                    if (noMoreResultsMsg) noMoreResultsMsg.classList.add('hidden');
-                    if (loadMoreBadge) loadMoreBadge.innerText = `Página ${paginaActualBusqueda + 1}`;
-                } else {
-                    if (btnLoadMore) btnLoadMore.classList.add('hidden');
-                    if (noMoreResultsMsg) noMoreResultsMsg.classList.remove('hidden');
-                }
-            }
-
             actualizarMapaCanvas();
+            actualizarChartYMetricas(filteredData);
         }
 
-        function guardarProspectoEnCartera(id) {
-            const cliente = busquedaResultados.find(c => c.id === id);
-            if (!cliente) return;
+        function actualizarMapaCanvas() {
+            if (leafletMapInstance) {
+                mapMarkers.forEach(m => leafletMapInstance.removeLayer(m));
+                mapMarkers = [];
 
-            const clienteData = {
-                ...cliente,
-                estado: cliente.estado || 'Pendiente',
-                montoCotizado: cliente.montoCotizado || 0,
-                contactoNombre: cliente.contactoNombre || '',
-                notas: cliente.notas || [],
-                fechaGuardado: new Date().toLocaleDateString('es-CL')
-            };
-
-            if (window.dbGuardarCliente) {
-                window.dbGuardarCliente(clienteData);
-            }
-            showToast(`"${cliente.nombre}" guardado en Cartera`, 'success');
-            renderizarResultadosBusqueda();
-        }
-
-        function guardarTodosLosBusqueda() {
-            if (busquedaResultados.length === 0) return;
-            busquedaResultados.forEach(c => {
-                const clienteData = {
-                    ...c,
-                    estado: 'Pendiente',
-                    montoCotizado: 0,
-                    notas: [],
-                    fechaGuardado: new Date().toLocaleDateString('es-CL')
-                };
-                if (window.dbGuardarCliente) window.dbGuardarCliente(clienteData);
-            });
-            showToast(`${busquedaResultados.length} prospectos guardados en Cartera`, 'success');
-            renderizarResultadosBusqueda();
-        }
-
-        function renderizarCarteraYMetricas() {
-            const container = document.getElementById('carteraCardsContainer');
-            if (!container) return;
-
-            container.innerHTML = '';
-            const carteraList = window.carteraClientes || [];
-
-            const carteraCountEl = document.getElementById('carteraCount');
-            const deskBadge = document.getElementById('deskCarteraBadge');
-            if (carteraCountEl) carteraCountEl.innerText = carteraList.length;
-            if (deskBadge) deskBadge.innerText = carteraList.length;
-
-            const filterStatusVal = document.getElementById('filterCarteraStatus')?.value || 'all';
-            const searchVal = (document.getElementById('searchCarteraInput')?.value || '').toLowerCase().trim();
-
-            const filtered = carteraList.filter(c => {
-                if (filterStatusVal !== 'all' && (c.estado || 'Pendiente') !== filterStatusVal) return false;
-                if (searchVal !== '') {
-                    const matchNom = (c.nombre || '').toLowerCase().includes(searchVal);
-                    const matchDir = (c.direccion || '').toLowerCase().includes(searchVal);
-                    const matchCon = (c.contactoNombre || '').toLowerCase().includes(searchVal);
-                    if (!matchNom && !matchDir && !matchCon) return false;
-                }
-                return true;
-            });
-
-            if (filtered.length === 0) {
-                container.innerHTML = `
-                    <div class="col-span-full bg-white p-12 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
-                        No hay clientes que coincidan con la búsqueda.
-                    </div>`;
-            } else {
-                filtered.forEach(cliente => {
-                    const statusClass = {
-                        'Pendiente': 'bg-slate-100 text-slate-700 border-slate-200',
-                        'Contactado': 'bg-blue-50 text-blue-700 border-blue-200',
-                        'Interesado': 'bg-amber-50 text-amber-800 border-amber-200',
-                        'Ganado': 'bg-emerald-50 text-emerald-800 border-emerald-200',
-                        'Perdido': 'bg-rose-50 text-rose-700 border-rose-200'
-                    }[cliente.estado || 'Pendiente'] || 'bg-slate-100 text-slate-700';
-
-                    const fonoLimpio = (cliente.telefono || '').replace(/\s+/g, '');
-                    const waLink = fonoLimpio ? `https://wa.me/${fonoLimpio.replace('+', '')}` : '#';
-
-                    const card = document.createElement('div');
-                    card.className = "bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between text-xs hover:shadow-md transition";
-                    card.innerHTML = `
-                        <div class="space-y-2">
-                            <div class="flex justify-between items-start gap-2">
-                                <div>
-                                    <h3 class="font-bold text-slate-800 text-sm leading-tight">${escapeHtml(cliente.nombre)}</h3>
-                                    <p class="text-slate-500 text-xs flex items-center gap-1 mt-0.5">
-                                        <i class="fa-solid fa-location-dot text-slate-400"></i>
-                                        <span>${escapeHtml(cliente.direccion)}</span>
-                                    </p>
-                                    ${cliente.contactoNombre ? `<p class="text-indigo-600 font-medium text-xs mt-1"><i class="fa-solid fa-user mr-1"></i>${escapeHtml(cliente.contactoNombre)}</p>` : ''}
-                                </div>
-                                <span class="shrink-0 px-2.5 py-1 rounded-xl text-[10px] font-bold border ${statusClass}">
-                                    ${cliente.estado || 'Pendiente'}
-                                </span>
+                const bounds = [];
+                filteredData.forEach(c => {
+                    if (c.lat && c.lng) {
+                        const marker = L.marker([c.lat, c.lng]).addTo(leafletMapInstance);
+                        marker.bindPopup(`
+                            <div class="text-xs">
+                                <strong class="text-slate-800 block text-sm mb-0.5">${escapeHtml(c.nombre)}</strong>
+                                <p class="text-slate-500 text-[11px] mb-1">${escapeHtml(c.direccion)}</p>
+                                <a href="tel:${c.telefono}" class="text-blue-600 font-semibold font-mono text-[11px]">${escapeHtml(c.telefono || 'Sin teléfono')}</a>
                             </div>
-
-                            ${cliente.montoCotizado ? `<div class="bg-amber-50 text-amber-900 font-bold px-3 py-1 rounded-xl text-xs inline-block border border-amber-200">💰 Cotizado: $${Number(cliente.montoCotizado).toLocaleString('es-CL')}</div>` : ''}
-                        </div>
-
-                        <div class="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                            <button onclick="abrirModalDetalleCliente('${cliente.id}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-3.5 py-2 rounded-xl text-xs border border-slate-200 touch-active flex items-center gap-1.5">
-                                <i class="fa-solid fa-pen-to-square text-blue-600"></i> Ficha CRM
-                            </button>
-
-                            <div class="flex items-center gap-1.5">
-                                ${fonoLimpio ? `<a href="tel:${fonoLimpio}" class="bg-blue-50 text-blue-600 p-2.5 rounded-xl text-xs flex items-center justify-center border border-blue-100" title="Llamar"><i class="fa-solid fa-phone"></i></a>` : ''}
-                                ${fonoLimpio ? `<a href="${waLink}" target="_blank" class="bg-emerald-500 hover:bg-emerald-600 text-white p-2.5 rounded-xl text-xs flex items-center justify-center" title="WhatsApp"><i class="fa-brands fa-whatsapp text-sm"></i></a>` : ''}
-                            </div>
-                        </div>
-                    `;
-                    container.appendChild(card);
-                });
-            }
-
-            actualizarMapaCanvas();
-            actualizarPipelineYDashboard();
-        }
-        window.renderizarCarteraYMetricas = renderizarCarteraYMetricas;
-
-        function filtrarCartera() {
-            renderizarCarteraYMetricas();
-        }
-
-        function actualizarPipelineYDashboard() {
-            const carteraList = window.carteraClientes || [];
-            let stageCounts = { Pendiente: 0, Contactado: 0, Interesado: 0, Ganado: 0, Perdido: 0 };
-            let totalCotizado = 0;
-            let totalGanado = 0;
-
-            let excelente = 0, bueno = 0, regular = 0, sinRating = 0;
-
-            // Clear Kanban columns
-            const stages = ['Pendiente', 'Contactado', 'Interesado', 'Ganado'];
-            stages.forEach(s => {
-                const col = document.getElementById(`kanban-${s}`);
-                if (col) col.innerHTML = '';
-            });
-
-            carteraList.forEach(c => {
-                const st = c.estado || 'Pendiente';
-                stageCounts[st] = (stageCounts[st] || 0) + 1;
-
-                const monto = Number(c.montoCotizado || 0);
-                if (st === 'Interesado') totalCotizado += monto;
-                if (st === 'Ganado') totalGanado += monto;
-
-                if (!c.rating) sinRating++;
-                else if (c.rating >= 4.5) excelente++;
-                else if (c.rating >= 4.0) bueno++;
-                else regular++;
-
-                // Render in Kanban Column if supported stage
-                if (stages.includes(st)) {
-                    const col = document.getElementById(`kanban-${st}`);
-                    if (col) {
-                        const item = document.createElement('div');
-                        item.className = "bg-white p-3 rounded-xl border border-slate-200/80 shadow-sm text-xs space-y-1.5 cursor-pointer hover:border-blue-300 transition";
-                        item.onclick = () => abrirModalDetalleCliente(c.id);
-                        item.innerHTML = `
-                            <h4 class="font-bold text-slate-800 leading-snug">${escapeHtml(c.nombre)}</h4>
-                            <p class="text-[11px] text-slate-500 truncate"><i class="fa-solid fa-location-dot mr-1"></i>${escapeHtml(c.direccion)}</p>
-                            ${c.montoCotizado ? `<p class="text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 inline-block">$${Number(c.montoCotizado).toLocaleString('es-CL')}</p>` : ''}
-                        `;
-                        col.appendChild(item);
+                        `);
+                        mapMarkers.push(marker);
+                        bounds.push([c.lat, c.lng]);
                     }
+                });
+
+                if (bounds.length > 0) {
+                    leafletMapInstance.fitBounds(bounds, { padding: [30, 30] });
                 }
-            });
-
-            document.getElementById('totalCotizadoMonto').innerText = '$' + totalCotizado.toLocaleString('es-CL');
-            document.getElementById('totalGanadoMonto').innerText = '$' + totalGanado.toLocaleString('es-CL');
-
-            document.getElementById('stagePendiente').innerText = stageCounts.Pendiente;
-            document.getElementById('stageContactado').innerText = stageCounts.Contactado;
-            document.getElementById('stageInteresado').innerText = stageCounts.Interesado;
-            document.getElementById('stageGanado').innerText = stageCounts.Ganado;
-
-            initChart([excelente, bueno, regular, sinRating]);
+            }
         }
 
         function initChart(dataCounts) {
-            const canvas = document.getElementById('ratingsChart');
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
+            const ctx = document.getElementById('ratingsChart').getContext('2d');
             if (chartInstance) chartInstance.destroy();
 
             chartInstance = new Chart(ctx, {
@@ -1521,156 +797,34 @@
             });
         }
 
-        function actualizarMapaCanvas() {
-            if (leafletMapInstance) {
-                mapMarkers.forEach(m => leafletMapInstance.removeLayer(m));
-                mapMarkers = [];
+        function actualizarChartYMetricas(data) {
+            let excelente = 0, bueno = 0, regular = 0, sinRating = 0;
+            let contactados = 0;
 
-                const bounds = [];
-                const todosLista = [...window.carteraClientes, ...busquedaResultados];
+            let stageCounts = { Pendiente: 0, Contactado: 0, Interesado: 0, Ganado: 0 };
 
-                todosLista.forEach(c => {
-                    if (c.lat && c.lng) {
-                        const marker = L.marker([c.lat, c.lng]).addTo(leafletMapInstance);
-                        marker.bindPopup(`
-                            <div class="text-xs">
-                                <strong class="text-slate-800 block text-sm mb-0.5">${escapeHtml(c.nombre)}</strong>
-                                <p class="text-slate-500 text-[11px] mb-1">${escapeHtml(c.direccion)}</p>
-                                <span class="bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded text-[10px]">${c.estado || 'Prospecto'}</span>
-                            </div>
-                        `);
-                        mapMarkers.push(marker);
-                        bounds.push([c.lat, c.lng]);
-                    }
-                });
+            data.forEach(c => {
+                const st = crmStatuses[c.id] || 'Pendiente';
+                stageCounts[st] = (stageCounts[st] || 0) + 1;
 
-                if (bounds.length > 0) {
-                    leafletMapInstance.fitBounds(bounds, { padding: [30, 30] });
-                }
-            }
-        }
+                if (st !== 'Pendiente') contactados++;
 
-        function abrirModalDetalleCliente(id) {
-            const cliente = window.carteraClientes.find(c => c.id === id);
-            if (!cliente) return;
-
-            clienteSeleccionadoModal = { ...cliente };
-
-            document.getElementById('detailNombre').innerText = cliente.nombre;
-            document.getElementById('detailDireccion').innerText = cliente.direccion;
-            document.getElementById('editEstado').value = cliente.estado || 'Pendiente';
-            document.getElementById('editContactoNombre').value = cliente.contactoNombre || '';
-            document.getElementById('editTelefono').value = cliente.telefono || '';
-            document.getElementById('editMontoCotizado').value = cliente.montoCotizado || 0;
-            document.getElementById('editProximaAccion').value = cliente.proximaAccion || '';
-
-            renderizarNotasModal(cliente.notas || []);
-            document.getElementById('modalDetalleCliente').classList.remove('hidden');
-        }
-
-        function closeModalDetalleCliente() {
-            document.getElementById('modalDetalleCliente').classList.add('hidden');
-            clienteSeleccionadoModal = null;
-        }
-
-        function renderizarNotasModal(notas) {
-            const listDiv = document.getElementById('detailNotasLista');
-            listDiv.innerHTML = '';
-
-            if (!notas || notas.length === 0) {
-                listDiv.innerHTML = `<p class="text-slate-400 text-center">Sin notas registradas</p>`;
-                return;
-            }
-
-            notas.forEach(n => {
-                const noteItem = document.createElement('div');
-                noteItem.className = "bg-white p-2.5 rounded-lg border border-slate-200 text-slate-700 text-xs";
-                noteItem.innerHTML = `<span class="text-[9px] text-slate-400 font-mono block mb-0.5">${n.fecha}</span>${escapeHtml(n.texto)}`;
-                listDiv.appendChild(noteItem);
+                if (!c.rating) sinRating++;
+                else if (c.rating >= 4.5) excelente++;
+                else if (c.rating >= 4.0) bueno++;
+                else regular++;
             });
-        }
 
-        function agregarNotaAClienteActual() {
-            const txtInput = document.getElementById('nuevaNotaInput');
-            const txt = txtInput.value.trim();
-            if (!txt || !clienteSeleccionadoModal) return;
-
-            if (!clienteSeleccionadoModal.notas) clienteSeleccionadoModal.notas = [];
+            initChart([excelente, bueno, regular, sinRating]);
             
-            const nuevaNota = {
-                fecha: new Date().toLocaleDateString('es-CL', { hour: '2-digit', minute: '2-digit' }),
-                texto: txt
-            };
+            document.getElementById('metricTotal').innerText = data.length;
+            document.getElementById('metricContacted').innerText = contactados;
+            document.getElementById('metricVisits').innerText = visitasTerreno.length;
 
-            clienteSeleccionadoModal.notas.unshift(nuevaNota);
-            txtInput.value = '';
-            renderizarNotasModal(clienteSeleccionadoModal.notas);
-        }
-
-        function guardarCambiosClienteModal() {
-            if (!clienteSeleccionadoModal) return;
-
-            clienteSeleccionadoModal.estado = document.getElementById('editEstado').value;
-            clienteSeleccionadoModal.contactoNombre = document.getElementById('editContactoNombre').value.trim();
-            clienteSeleccionadoModal.telefono = document.getElementById('editTelefono').value.trim();
-            clienteSeleccionadoModal.montoCotizado = Number(document.getElementById('editMontoCotizado').value || 0);
-            clienteSeleccionadoModal.proximaAccion = document.getElementById('editProximaAccion').value.trim();
-
-            if (window.dbGuardarCliente) {
-                window.dbGuardarCliente(clienteSeleccionadoModal);
-            }
-
-            closeModalDetalleCliente();
-            showToast('Ficha del cliente actualizada', 'success');
-        }
-
-        function eliminarClienteActual() {
-            if (!clienteSeleccionadoModal) return;
-            if (window.dbEliminarCliente) {
-                window.dbEliminarCliente(clienteSeleccionadoModal.id);
-            }
-            closeModalDetalleCliente();
-            showToast('Cliente eliminado de la cartera', 'info');
-        }
-
-        function openModalNuevoCliente() { document.getElementById('modalNuevoCliente').classList.remove('hidden'); }
-        function closeModalNuevoCliente() { document.getElementById('modalNuevoCliente').classList.add('hidden'); }
-
-        function guardarClienteNuevoManual() {
-            const nom = document.getElementById('nuevoNombre').value.trim();
-            const dir = document.getElementById('nuevoDireccion').value.trim();
-            const tel = document.getElementById('nuevoTelefono').value.trim();
-            const con = document.getElementById('nuevoContacto').value.trim();
-
-            if (!nom) {
-                showToast('Ingresa el nombre del negocio', 'warning');
-                return;
-            }
-
-            const nuevoCliente = {
-                id: 'm_' + Date.now(),
-                nombre: nom,
-                direccion: dir || 'Sin dirección registrada',
-                telefono: tel || '',
-                contactoNombre: con || '',
-                estado: 'Pendiente',
-                montoCotizado: 0,
-                notas: [],
-                fechaGuardado: new Date().toLocaleDateString('es-CL')
-            };
-
-            if (window.dbGuardarCliente) {
-                window.dbGuardarCliente(nuevoCliente);
-            }
-
-            closeModalNuevoCliente();
-            document.getElementById('nuevoNombre').value = '';
-            document.getElementById('nuevoDireccion').value = '';
-            document.getElementById('nuevoTelefono').value = '';
-            document.getElementById('nuevoContacto').value = '';
-
-            switchTab('cartera');
-            showToast('Nuevo cliente añadido a la Cartera', 'success');
+            document.getElementById('stagePendiente').innerText = stageCounts.Pendiente;
+            document.getElementById('stageContactado').innerText = stageCounts.Contactado;
+            document.getElementById('stageInteresado').innerText = stageCounts.Interesado;
+            document.getElementById('stageGanado').innerText = stageCounts.Ganado;
         }
 
         function openCheckinModal() { document.getElementById('checkinModal').classList.remove('hidden'); }
@@ -1691,61 +845,61 @@
                 nombre: nombre,
                 resultado: resultado,
                 notas: notas || 'Sin observaciones.',
-                timestamp: Date.now(),
                 fecha: new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })
             };
 
-            if (window.dbGuardarVisita) {
-                window.dbGuardarVisita(nuevaVisita);
-            }
+            visitasTerreno.unshift(nuevaVisita);
+            localStorage.setItem(LOCAL_STORAGE_VISITAS_KEY, JSON.stringify(visitasTerreno));
             
             closeCheckinModal();
             document.getElementById('visitNombre').value = '';
             document.getElementById('visitNotas').value = '';
 
-            showToast('Registro de visita guardado', 'success');
+            renderizarVisitas();
+            actualizarChartYMetricas(clientesData);
+            showToast('Check-In de visita registrado con GPS', 'success');
         }
 
         function renderizarVisitas() {
             const container = document.getElementById('visitasListContainer');
-            if (!container) return;
-
             container.innerHTML = '';
-            const lista = window.visitasTerreno || [];
 
-            if (lista.length === 0) {
+            if (visitasTerreno.length === 0) {
                 container.innerHTML = `
-                    <div class="col-span-full bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
-                        <i class="fa-solid fa-clipboard-user text-3xl mb-2 text-slate-300 block"></i>
-                        Aún no se han registrado reuniones en terreno.
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
+                        <i class="fa-solid fa-clipboard-user text-2xl mb-1 text-slate-300 block"></i>
+                        Aún no se han registrado visitas en terreno hoy.
                     </div>`;
                 return;
             }
 
-            lista.forEach(v => {
+            visitasTerreno.forEach(v => {
                 const card = document.createElement('div');
-                card.className = "bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm space-y-1.5 text-xs";
+                card.className = "bg-white p-3 rounded-2xl border border-slate-200/80 shadow-sm space-y-1 text-xs";
                 card.innerHTML = `
                     <div class="flex justify-between items-start">
                         <h4 class="font-bold text-slate-800 text-xs">${escapeHtml(v.nombre)}</h4>
-                        <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-mono">${v.fecha}</span>
+                        <span class="text-[9px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-mono">${v.fecha}</span>
                     </div>
-                    <p class="text-blue-600 font-semibold text-xs">${escapeHtml(v.resultado)}</p>
-                    <p class="text-slate-500 text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-100">${escapeHtml(v.notas)}</p>
+                    <p class="text-blue-600 font-semibold text-[11px]">${escapeHtml(v.resultado)}</p>
+                    <p class="text-slate-500 text-[10px] bg-slate-50 p-2 rounded-xl border border-slate-100">${escapeHtml(v.notas)}</p>
                 `;
                 container.appendChild(card);
             });
         }
-        window.renderizarVisitas = renderizarVisitas;
 
         async function compartirCliente(nombre, direccion, fono) {
             const shareData = {
                 title: `Prospecto Packaging: ${nombre}`,
-                text: `📍 ${nombre}\nDirección: ${direccion}\nTeléfono: ${fono || 'S/I'}\nCliente Packaging.`
+                text: `📍 ${nombre}\nDirección: ${direccion}\nTeléfono: ${fono || 'S/I'}\nEmpresa interesada en packaging.`
             };
 
             if (navigator.share) {
-                try { await navigator.share(shareData); } catch (e) {}
+                try {
+                    await navigator.share(shareData);
+                } catch (e) {
+                    console.log('Compartir cancelado');
+                }
             } else {
                 navigator.clipboard.writeText(shareData.text);
                 showToast('Ficha copiada al portapapeles', 'info');
@@ -1753,26 +907,26 @@
         }
 
         function exportarCSV() {
-            const data = window.carteraClientes || [];
-            if (data.length === 0) {
-                showToast('No hay datos en Cartera para exportar', 'warning');
+            if (filteredData.length === 0) {
+                showToast('No hay datos para exportar', 'warning');
                 return;
             }
 
-            let csvContent = "\uFEFFID;Nombre Negocio;Dirección;Teléfono;Contacto;Rating;Estado CRM;Monto Cotizado\n";
-            data.forEach(c => {
-                csvContent += `"${c.id}";"${c.nombre}";"${c.direccion}";"${c.telefono || ''}";"${c.contactoNombre || ''}";"${c.rating || ''}";"${c.estado || 'Pendiente'}";"${c.montoCotizado || 0}"\n`;
+            let csvContent = "\uFEFFID;Nombre Negocio;Dirección;Teléfono;Website;Rating;Estado CRM\n";
+            filteredData.forEach(c => {
+                const st = crmStatuses[c.id] || 'Pendiente';
+                csvContent += `"${c.id}";"${c.nombre}";"${c.direccion}";"${c.telefono}";"${c.website}";"${c.rating || ''}";"${st}"\n`;
             });
 
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.setAttribute('href', url);
-            link.setAttribute('download', `cartera_packaging_${new Date().toISOString().slice(0, 10)}.csv`);
+            link.setAttribute('download', `prospeccion_terreno_${new Date().toISOString().slice(0, 10)}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            showToast('CSV exportado correctamente', 'success');
+            showToast('CSV exportado con éxito', 'success');
         }
 
         function openApiKeyModal() { document.getElementById('apiKeyModal').classList.remove('hidden'); }
@@ -1807,7 +961,7 @@
                 info: 'bg-slate-900 text-slate-100 border-slate-700'
             };
 
-            toast.className = `px-4 py-3 rounded-xl border shadow-xl text-xs font-medium transition duration-300 transform -translate-y-2 flex items-center gap-2 ${colors[type] || colors.info}`;
+            toast.className = `px-3.5 py-2.5 rounded-xl border shadow-xl text-xs font-medium transition duration-300 transform -translate-y-2 flex items-center gap-2 ${colors[type] || colors.info}`;
             toast.innerHTML = `<span>${escapeHtml(message)}</span>`;
 
             container.appendChild(toast);
