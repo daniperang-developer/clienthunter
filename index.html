@@ -1,987 +1,1443 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="h-full">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>B2B Packaging - Mobile Terreno & Mini CRM</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>B2B Pro & CRM Intelligence Suite</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Leaflet CSS & JS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- FontAwesome -->
+    <!-- Font Inter & Lucide Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                }
+            }
+        }
+    </script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-        
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
-            user-select: none;
-            background-color: #f8fafc;
-        }
-
-        /* Safe area spacing for mobile devices with notches or home bars */
-        .safe-bottom {
-            padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
-        }
-
-        #mapCanvas {
-            height: 100%;
-            width: 100%;
-            border-radius: 1rem;
-            z-index: 10;
-        }
-
-        .leaflet-popup-content-wrapper {
-            border-radius: 14px;
-            padding: 6px;
-            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15);
-        }
-
-        /* Custom scrollbar */
-        .custom-scroll::-webkit-scrollbar {
-            width: 4px;
-            height: 4px;
-        }
-        .custom-scroll::-webkit-scrollbar-thumb {
-            background-color: #cbd5e1;
-            border-radius: 4px;
-        }
-
-        /* Smooth Tab Animation */
-        .tab-content {
-            display: none;
-            opacity: 0;
-            transition: opacity 0.2s ease-in-out;
-        }
-        .tab-content.active {
-            display: block;
-            opacity: 1;
-        }
-
-        /* Ripple touch effect styling */
-        .touch-active:active {
-            transform: scale(0.97);
-            opacity: 0.9;
-        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade { animation: fadeIn 0.25s ease-out forwards; }
     </style>
 </head>
-<body class="text-slate-800 min-h-screen pb-20">
+<body class="h-full bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex overflow-hidden font-sans transition-colors duration-200">
 
-    <!-- Mobile App Header -->
-    <header class="bg-slate-900 text-white sticky top-0 z-40 border-b border-slate-800 shadow-md">
-        <div class="max-w-md mx-auto px-4 py-3 flex justify-between items-center">
+    <!-- Sidebar (Ancho optimizado más esbelto w-64 en lugar de w-72) -->
+    <aside class="w-64 bg-slate-900 dark:bg-slate-900 border-r border-slate-800 flex flex-col z-20 shadow-xl select-none">
+        <div class="p-5 border-b border-slate-800 flex items-center justify-between">
             <div class="flex items-center gap-2.5">
-                <div class="bg-blue-600 p-2 rounded-xl text-white shadow-lg shadow-blue-500/30 flex items-center justify-center w-9 h-9">
-                    <i class="fa-solid fa-boxes-packing text-lg"></i>
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
+                    <i class="fa-solid fa-rocket text-sm"></i>
                 </div>
                 <div>
-                    <h1 class="text-sm font-bold tracking-tight leading-tight flex items-center gap-1.5">
-                        Packaging Terreno
-                        <span id="demoModeBadge" class="bg-amber-500/20 text-amber-300 text-[9px] px-1.5 py-0.5 rounded font-mono font-normal">Demo</span>
-                    </h1>
-                    <p class="text-[10px] text-slate-400">Prospección & CRM Móvil</p>
+                    <h1 class="font-bold text-sm text-white tracking-tight">B2B Pro Suite</h1>
+                    <span class="text-[11px] text-slate-400 font-medium">CRM Intelligence</span>
                 </div>
-            </div>
-            
-            <div class="flex items-center gap-2">
-                <button onclick="obtenerUbicacionGPS()" class="bg-slate-800 hover:bg-slate-700 active:bg-blue-600 text-slate-200 p-2 rounded-xl border border-slate-700 transition flex items-center justify-center w-9 h-9 touch-active" title="Obtener GPS">
-                    <i class="fa-solid fa-location-crosshairs text-amber-400"></i>
-                </button>
-                <button onclick="openApiKeyModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 p-2 rounded-xl border border-slate-700 transition flex items-center justify-center w-9 h-9 touch-active" title="Ajustes API Key">
-                    <i class="fa-solid fa-gear text-slate-300 text-sm"></i>
-                </button>
             </div>
         </div>
-    </header>
 
-    <!-- Notification Toast Banner -->
-    <div id="toastContainer" class="fixed top-14 left-4 right-4 z-50 flex flex-col gap-2 pointer-events-none max-w-md mx-auto"></div>
-
-    <!-- MAIN MOBILE APPLICATION CONTAINER -->
-    <main class="max-w-md mx-auto px-3 pt-3">
-
-        <!-- TAB 1: BUSCAR PROSPECTOS -->
-        <section id="tab-buscar" class="tab-content active space-y-3">
-            
-            <!-- Quick GPS Location Card -->
-            <div class="bg-gradient-to-br from-blue-900 to-slate-900 text-white p-4 rounded-2xl shadow-lg border border-blue-800/50">
-                <div class="flex justify-between items-start mb-3">
-                    <div>
-                        <span class="text-[10px] text-blue-300 font-semibold uppercase tracking-wider block mb-0.5">Prospección de Terreno</span>
-                        <h2 class="text-base font-bold">Encuentra locales cerca</h2>
-                    </div>
-                    <button onclick="obtenerUbicacionGPS()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded-xl font-medium shadow-md flex items-center gap-1.5 touch-active">
-                        <i class="fa-solid fa-location-arrow"></i> GPS
-                    </button>
-                </div>
-
-                <div class="space-y-2.5">
-                    <div>
-                        <label class="block text-[10px] font-medium text-slate-300 mb-1">Rubro comercial / Producto</label>
-                        <div class="relative">
-                            <i class="fa-solid fa-store absolute left-3 top-2.5 text-slate-400 text-xs"></i>
-                            <input type="text" id="rubro" value="Pastelería" placeholder="Ej: Pastelería, Joyería, Gourmet" 
-                                   class="w-full pl-9 pr-3 py-2 bg-slate-800/80 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-[10px] font-medium text-slate-300 mb-1">Comuna / Ciudad o Dirección</label>
-                        <div class="relative">
-                            <i class="fa-solid fa-map-pin absolute left-3 top-2.5 text-slate-400 text-xs"></i>
-                            <input type="text" id="ciudad" value="Providencia" placeholder="Ej: Providencia, Santiago" 
-                                   class="w-full pl-9 pr-3 py-2 bg-slate-800/80 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                    </div>
-
-                    <button onclick="ejecutarProspeccion()" 
-                            class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2.5 px-4 rounded-xl shadow-lg shadow-blue-500/30 touch-active transition flex items-center justify-center gap-2 text-xs">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                        <span>Buscar en esta zona</span>
-                    </button>
-                </div>
-
-                <!-- Quick Tags -->
-                <div class="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center gap-1.5 overflow-x-auto custom-scroll text-[10px]">
-                    <span class="text-slate-400 shrink-0">Rápidos:</span>
-                    <button onclick="quickSearch('Pastelería', 'Providencia')" class="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg shrink-0 border border-slate-700">🍰 Pastelerías</button>
-                    <button onclick="quickSearch('Joyería', 'Las Condes')" class="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg shrink-0 border border-slate-700">💎 Joyerías</button>
-                    <button onclick="quickSearch('Boutique', 'Viña del Mar')" class="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg shrink-0 border border-slate-700">👗 Boutiques</button>
-                    <button onclick="quickSearch('Chocolatería', 'Santiago')" class="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg shrink-0 border border-slate-700">🍫 Chocolates</button>
-                </div>
-            </div>
-
-            <!-- Status Loader -->
-            <div id="status" class="hidden p-3 bg-blue-50 text-blue-700 text-xs font-medium rounded-xl border border-blue-100 items-center justify-center gap-2">
-                <i class="fa-solid fa-circle-notch fa-spin text-blue-600"></i>
-                <span id="statusText">Buscando locales...</span>
-            </div>
-
-            <!-- Recent Search Summary Cards -->
-            <div id="searchResultSummary" class="hidden bg-emerald-50 border border-emerald-200 p-3 rounded-2xl flex items-center justify-between text-xs text-emerald-900">
-                <div class="flex items-center gap-2">
-                    <i class="fa-solid fa-circle-check text-emerald-600 text-base"></i>
-                    <div>
-                        <strong id="counterText">0 prospectos</strong>
-                        <p class="text-[10px] text-emerald-700">Listos para gestión comercial</p>
-                    </div>
-                </div>
-                <button onclick="switchTab('lista')" class="bg-emerald-600 text-white font-semibold px-3 py-1.5 rounded-xl text-[11px] touch-active">
-                    Ver Lista <i class="fa-solid fa-arrow-right ml-1"></i>
-                </button>
-            </div>
-
-            <!-- Quick CRM Summary Widget -->
-            <div class="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm">
-                <h3 class="text-xs font-bold text-slate-700 mb-2 flex items-center justify-between">
-                    <span><i class="fa-solid fa-chart-simple text-blue-600 mr-1.5"></i> Resumen de Hoy</span>
-                    <span id="todayDateLabel" class="text-[10px] font-normal text-slate-400"></span>
-                </h3>
-                <div class="grid grid-cols-3 gap-2 text-center">
-                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                        <p class="text-[9px] text-slate-400 font-semibold uppercase">Prospectos</p>
-                        <p id="metricTotal" class="text-lg font-bold text-slate-800">0</p>
-                    </div>
-                    <div class="bg-amber-50 p-2.5 rounded-xl border border-amber-100">
-                        <p class="text-[9px] text-amber-700 font-semibold uppercase">Contactados</p>
-                        <p id="metricContacted" class="text-lg font-bold text-amber-800">0</p>
-                    </div>
-                    <div class="bg-emerald-50 p-2.5 rounded-xl border border-emerald-100">
-                        <p class="text-[9px] text-emerald-700 font-semibold uppercase">Visitas Hoy</p>
-                        <p id="metricVisits" class="text-lg font-bold text-emerald-800">0</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- TAB 2: LISTA DE PROSPECTOS -->
-        <section id="tab-lista" class="tab-content space-y-3">
-            
-            <!-- Filters Bar -->
-            <div class="bg-white p-2.5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-2 overflow-x-auto custom-scroll text-xs">
-                <select id="filterRating" onchange="aplicarFiltros()" class="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700 font-medium text-xs focus:outline-none">
-                    <option value="all">⭐ Todos los Ratings</option>
-                    <option value="high">4.5⭐ o más (Top)</option>
-                    <option value="mid">4.0⭐ a 4.4⭐</option>
-                </select>
-
-                <select id="filterStatus" onchange="aplicarFiltros()" class="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-slate-700 font-medium text-xs focus:outline-none">
-                    <option value="all">📌 Todos los Estados</option>
-                    <option value="Pendiente">⏳ Sin Contactar</option>
-                    <option value="Contactado">📩 Contactados</option>
-                    <option value="Interesado">🔥 En Cotización</option>
-                    <option value="Ganado">✅ Clientes Ganados</option>
-                </select>
-
-                <button onclick="exportarCSV()" class="bg-slate-100 text-slate-700 px-3 py-1.5 rounded-xl font-medium shrink-0 flex items-center gap-1 border border-slate-200 touch-active">
-                    <i class="fa-solid fa-file-excel text-emerald-600"></i> CSV
-                </button>
-            </div>
-
-            <!-- Cards Container -->
-            <div id="cardsContainer" class="space-y-3">
-                <div class="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
-                    <i class="fa-solid fa-magnifying-glass text-3xl mb-2 text-slate-300 block"></i>
-                    No hay prospectos desplegados. Realiza una búsqueda arriba.
-                </div>
-            </div>
-        </section>
-
-        <!-- TAB 3: MAPA INTERACTIVO -->
-        <section id="tab-mapa" class="tab-content space-y-3">
-            <div class="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col h-[calc(100vh-170px)]">
-                <div class="flex items-center justify-between mb-2 shrink-0">
-                    <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-map-location-dot text-blue-600 text-sm"></i>
-                        <h2 class="text-xs font-bold text-slate-800">Mapa de Terreno</h2>
-                    </div>
-                    <span id="engineBadge" class="text-[9px] uppercase font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-md">
-                        Leaflet Engine
-                    </span>
-                </div>
-
-                <!-- Map Container -->
-                <div class="relative flex-1 bg-slate-100 rounded-xl overflow-hidden border border-slate-200">
-                    <div id="mapCanvas"></div>
-                </div>
-            </div>
-        </section>
-
-        <!-- TAB 4: PIPELINE CRM & DASHBOARD -->
-        <section id="tab-crm" class="tab-content space-y-3">
-            
-            <!-- Ratings Chart -->
-            <div class="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm">
-                <h3 class="text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
-                    <i class="fa-solid fa-chart-pie text-indigo-600"></i>
-                    Reputación de Locales (Google)
-                </h3>
-                <div class="relative h-[160px] w-full flex items-center justify-center">
-                    <canvas id="ratingsChart"></canvas>
-                </div>
-            </div>
-
-            <!-- Pipeline Funnel Stages Cards -->
-            <div class="space-y-2">
-                <h3 class="text-xs font-bold text-slate-700 px-1">Pipeline de Ventas</h3>
-                
-                <div id="pipelineStages" class="grid grid-cols-2 gap-2 text-xs">
-                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                        <span class="text-[10px] text-slate-400 font-semibold block">⏳ Pendientes</span>
-                        <span id="stagePendiente" class="text-base font-bold text-slate-700">0</span>
-                    </div>
-                    <div class="bg-blue-50 p-3 rounded-xl border border-blue-200">
-                        <span class="text-[10px] text-blue-600 font-semibold block">📩 Contactados</span>
-                        <span id="stageContactado" class="text-base font-bold text-blue-800">0</span>
-                    </div>
-                    <div class="bg-amber-50 p-3 rounded-xl border border-amber-200">
-                        <span class="text-[10px] text-amber-700 font-semibold block">🔥 En Cotización</span>
-                        <span id="stageInteresado" class="text-base font-bold text-amber-900">0</span>
-                    </div>
-                    <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-200">
-                        <span class="text-[10px] text-emerald-700 font-semibold block">✅ Clientes Ganados</span>
-                        <span id="stageGanado" class="text-base font-bold text-emerald-900">0</span>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- TAB 5: REGISTRO DE VISITAS TERRENO -->
-        <section id="tab-visitas" class="tab-content space-y-3">
-            <div class="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-                <div>
-                    <h3 class="text-xs font-bold text-slate-800">Bitácora de Visitas</h3>
-                    <p class="text-[10px] text-slate-400">Historial de terreno e hitos</p>
-                </div>
-                <button onclick="openCheckinModal()" class="bg-blue-600 text-white text-xs px-3 py-1.5 rounded-xl font-semibold shadow-md touch-active flex items-center gap-1">
-                    <i class="fa-solid fa-plus"></i> Nueva Visita
-                </button>
-            </div>
-
-            <!-- Visits Timeline List -->
-            <div id="visitasListContainer" class="space-y-2">
-                <div class="bg-white p-6 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
-                    <i class="fa-solid fa-clipboard-user text-2xl mb-1 text-slate-300 block"></i>
-                    Aún no se han registrado visitas en terreno hoy.
-                </div>
-            </div>
-        </section>
-
-    </main>
-
-    <!-- MOBILE FIXED BOTTOM NAVIGATION BAR -->
-    <nav class="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md text-slate-400 border-t border-slate-800 z-40 safe-bottom">
-        <div class="max-w-md mx-auto grid grid-cols-5 text-center text-[10px] py-2">
-            <button onclick="switchTab('buscar')" id="nav-buscar" class="nav-btn text-blue-400 flex flex-col items-center gap-1 touch-active">
-                <i class="fa-solid fa-magnifying-glass text-base"></i>
-                <span class="font-medium">Buscar</span>
+        <nav class="p-3 space-y-1.5 flex-1 overflow-y-auto">
+            <button onclick="switchView('dashboard', this)" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all text-slate-300 hover:bg-slate-800/80 hover:text-white">
+                <i class="fa-solid fa-chart-pie w-4 text-center text-blue-400"></i> Dashboard General
             </button>
-            <button onclick="switchTab('lista')" id="nav-lista" class="nav-btn flex flex-col items-center gap-1 touch-active">
-                <i class="fa-solid fa-list-check text-base"></i>
-                <span class="font-medium">Lista</span>
+            <button onclick="switchView('buscar', this)" class="nav-item active w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all bg-blue-600 text-white shadow-lg shadow-blue-600/20">
+                <i class="fa-solid fa-magnifying-glass w-4 text-center"></i> Buscador Leads (API)
             </button>
-            <button onclick="switchTab('mapa')" id="nav-mapa" class="nav-btn flex flex-col items-center gap-1 touch-active">
-                <i class="fa-solid fa-map-location-dot text-base"></i>
-                <span class="font-medium">Mapa</span>
+            <button onclick="switchView('cartera', this)" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all text-slate-300 hover:bg-slate-800/80 hover:text-white">
+                <i class="fa-solid fa-table-columns w-4 text-center text-amber-400"></i> Pipeline Kanban CRM
             </button>
-            <button onclick="switchTab('crm')" id="nav-crm" class="nav-btn flex flex-col items-center gap-1 touch-active">
-                <i class="fa-solid fa-chart-pie text-base"></i>
-                <span class="font-medium">Pipeline</span>
+            <button onclick="switchView('rubros', this)" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all text-slate-300 hover:bg-slate-800/80 hover:text-white">
+                <i class="fa-solid fa-layer-group w-4 text-center text-violet-400"></i> Cartera por Rubro
             </button>
-            <button onclick="switchTab('visitas')" id="nav-visitas" class="nav-btn flex flex-col items-center gap-1 touch-active">
-                <i class="fa-solid fa-street-view text-base"></i>
-                <span class="font-medium">Terreno</span>
+            <button onclick="switchView('mapa', this)" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all text-slate-300 hover:bg-slate-800/80 hover:text-white">
+                <i class="fa-solid fa-map-location-dot w-4 text-center text-emerald-400"></i> Mapa Geográfico
             </button>
-        </div>
-    </nav>
+        </nav>
 
-    <!-- MODAL: CHECK-IN DE TERRENO -->
-    <div id="checkinModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-2xl max-w-sm w-full p-4 shadow-2xl border border-slate-100 relative">
-            <button onclick="closeCheckinModal()" class="absolute top-3.5 right-3.5 text-slate-400 hover:text-slate-600">
-                <i class="fa-solid fa-xmark text-lg"></i>
-            </button>
-            
-            <div class="flex items-center gap-2.5 mb-3">
-                <div class="p-2 bg-blue-100 text-blue-600 rounded-xl">
-                    <i class="fa-solid fa-location-dot text-base"></i>
-                </div>
-                <div>
-                    <h3 class="font-bold text-slate-800 text-sm">Registrar Visita Presencial</h3>
-                    <p class="text-[10px] text-slate-400">Marcar hito en terreno</p>
-                </div>
+        <div class="p-3.5 border-t border-slate-800 bg-slate-950/40">
+            <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[11px] text-slate-400 font-medium">Prospectos en Cartera</span>
+                <span id="counter-badge" class="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-[10px] font-bold">0</span>
             </div>
-
-            <div class="space-y-2.5">
-                <div>
-                    <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">Nombre del Local / Cliente</label>
-                    <input type="text" id="visitNombre" placeholder="Ej: Pastelería Dulce Amor" 
-                           class="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-
-                <div>
-                    <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">Resultado de la reunión</label>
-                    <select id="visitResultado" class="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none">
-                        <option value="Contacto inicial realizado">🤝 Contacto inicial realizado</option>
-                        <option value="Muestras entregadas">📦 Muestras de Packaging entregadas</option>
-                        <option value="Solicita cotización personalizada">📝 Solicita Cotización</option>
-                        <option value="Cierre de venta realizado">🎉 Venta realizada en terreno</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-[10px] font-semibold text-slate-600 mb-0.5">Notas / Acuerdos</label>
-                    <textarea id="visitNotas" rows="2" placeholder="Ej: Interesados en 500 cajas con logo dorado..." 
-                              class="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-                </div>
-
-                <button onclick="guardarVisitaTerreno()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-3 rounded-xl text-xs shadow-md touch-active">
-                    Guardar Check-In con GPS
-                </button>
+            <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                <div id="pipeline-progress" class="bg-blue-500 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
             </div>
         </div>
-    </div>
+    </aside>
 
-    <!-- MODAL: GOOGLE API KEY CONFIG -->
-    <div id="apiKeyModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="bg-white rounded-2xl max-w-sm w-full p-4 shadow-2xl border border-slate-100 relative">
-            <button onclick="closeApiKeyModal()" class="absolute top-3.5 right-3.5 text-slate-400 hover:text-slate-600">
-                <i class="fa-solid fa-xmark text-lg"></i>
-            </button>
-            
-            <div class="flex items-center gap-2.5 mb-2">
-                <div class="p-2 bg-amber-100 text-amber-700 rounded-xl">
-                    <i class="fa-solid fa-key text-base"></i>
-                </div>
-                <div>
-                    <h3 class="font-bold text-slate-800 text-sm">Google API Key</h3>
-                    <p class="text-[10px] text-slate-400">Places API (New)</p>
-                </div>
+    <!-- Main Workspace -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden">
+        <!-- Topbar -->
+        <header class="h-18 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-8 flex items-center justify-between z-10">
+            <div class="flex items-center gap-4">
+                <h2 id="topbar-title" class="text-lg font-bold text-slate-800 dark:text-white tracking-tight">Buscador de Prospectos</h2>
+                <span id="status-badge" class="px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400 text-xs font-semibold flex items-center gap-1.5 border border-emerald-200 dark:border-emerald-900">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Sistema Listo
+                </span>
             </div>
-
-            <p class="text-[11px] text-slate-600 mb-3 leading-tight">
-                Ingresa tu API Key de Google Cloud para realizar búsquedas en vivo de locales reales.
-            </p>
-
-            <input type="text" id="userApiKeyInput" placeholder="AIzaSy..." 
-                   class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3">
-
-            <div class="flex items-center justify-end gap-2">
-                <button onclick="closeApiKeyModal()" class="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-xl">Cancelar</button>
-                <button onclick="saveApiKey()" class="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-xl font-semibold shadow-md">Guardar</button>
+            
+            <div class="flex items-center gap-3">
+                <button onclick="exportarCSV()" class="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition flex items-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-file-arrow-down text-blue-500"></i> Exportar CSV
+                </button>
+                <button onclick="toggleDarkMode()" class="w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-700 transition shadow-sm">
+                    <i class="fa-solid fa-moon dark:hidden"></i>
+                    <i class="fa-solid fa-sun hidden dark:inline text-amber-400"></i>
+                </button>
             </div>
-        </div>
-    </div>
+        </header>
 
-    <script>
-        let clientesData = [];
-        let filteredData = [];
-        let isGoogleMapsLoaded = false;
-        let leafletMapInstance = null;
-        let mapMarkers = [];
-        let chartInstance = null;
+        <!-- Dynamic Content Body -->
+        <div class="flex-1 overflow-y-auto p-8 relative">
 
-        const LOCAL_STORAGE_CRM_KEY = 'b2b_packaging_crm_status_v2';
-        const LOCAL_STORAGE_VISITAS_KEY = 'b2b_packaging_visitas_v1';
-        
-        let crmStatuses = JSON.parse(localStorage.getItem(LOCAL_STORAGE_CRM_KEY) || '{}');
-        let visitasTerreno = JSON.parse(localStorage.getItem(LOCAL_STORAGE_VISITAS_KEY) || '[]');
-
-        // Chilean Fallback Database for Mobile Demo Mode
-        const databaseDemoChile = [
-            { id: "demo_1", nombre: "Pastelería Dulce Amor", rubro: "pastelería", ciudad: "Providencia", direccion: "Av. Providencia 1420, Providencia", telefono: "+56922345678", website: "https://dulceamor.cl", rating: 4.8, lat: -33.4265, lng: -70.6130 },
-            { id: "demo_2", nombre: "Repostería La Artesanal", rubro: "pastelería", ciudad: "Providencia", direccion: "Manuel Montt 450, Providencia", telefono: "+56923456789", website: "https://laartesanalbakery.cl", rating: 4.6, lat: -33.4320, lng: -70.6210 },
-            { id: "demo_3", nombre: "Bakery & Co. Gourmet", rubro: "pastelería", ciudad: "Providencia", direccion: "Av. Pedro de Valdivia 880, Providencia", telefono: "+56987654321", website: "https://bakeryandco.cl", rating: 4.9, lat: -33.4310, lng: -70.6090 },
-            { id: "demo_4", nombre: "Chocolatería Boutique Cacao", rubro: "pastelería", ciudad: "Providencia", direccion: "Eliodoro Yáñez 1920, Providencia", telefono: "+56928901234", website: "", rating: 4.2, lat: -33.4350, lng: -70.6050 },
-            { id: "demo_5", nombre: "Joyería Aurum & Co.", rubro: "joyería", ciudad: "Las Condes", direccion: "Av. Apoquindo 4800, Las Condes", telefono: "+56924567890", website: "https://aurumjoyeria.cl", rating: 4.9, lat: -33.4110, lng: -70.5750 },
-            { id: "demo_6", nombre: "Boutique Moda Italiana", rubro: "boutique", ciudad: "Viña del Mar", direccion: "Av. Libertad 940, Viña del Mar", telefono: "+56932268901", website: "https://modaitaliana.cl", rating: 4.5, lat: -32.9980, lng: -71.5510 }
-        ];
-
-        window.onload = function() {
-            // Set today date
-            const options = { weekday: 'short', day: 'numeric', month: 'short' };
-            document.getElementById('todayDateLabel').innerText = new Date().toLocaleDateString('es-CL', options);
-
-            checkStoredApiKey();
-            initChart([0, 0, 0, 0]);
-            initLeafletMap(-33.4489, -70.6693, 13);
-            
-            ejecutarProspeccion();
-            renderizarVisitas();
-        };
-
-        function switchTab(tabName) {
-            const tabs = ['buscar', 'lista', 'mapa', 'crm', 'visitas'];
-            tabs.forEach(t => {
-                const el = document.getElementById(`tab-${t}`);
-                const btn = document.getElementById(`nav-${t}`);
-                if (t === tabName) {
-                    el.classList.add('active');
-                    btn.classList.add('text-blue-400');
-                    btn.classList.remove('text-slate-400');
-                } else {
-                    el.classList.remove('active');
-                    btn.classList.remove('text-blue-400');
-                    btn.classList.add('text-slate-400');
-                }
-            });
-
-            // Refresh map view size if opening map tab
-            if (tabName === 'mapa' && leafletMapInstance) {
-                setTimeout(() => {
-                    leafletMapInstance.invalidateSize();
-                    actualizarMapaCanvas();
-                }, 150);
-            }
-        }
-
-        function obtenerUbicacionGPS() {
-            if (!navigator.geolocation) {
-                showToast('GPS no soportado en este dispositivo', 'warning');
-                return;
-            }
-
-            showStatus("Obteniendo posición GPS...");
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    hideStatus();
-                    const lat = pos.coords.latitude;
-                    const lng = pos.coords.longitude;
-
-                    document.getElementById('ciudad').value = `Mi GPS (${lat.toFixed(3)}, ${lng.toFixed(3)})`;
-                    if (leafletMapInstance) {
-                        leafletMapInstance.setView([lat, lng], 14);
-                    }
-                    showToast('Ubicación GPS capturada con éxito', 'success');
-                    ejecutarProspeccion();
-                },
-                () => {
-                    hideStatus();
-                    showToast('No se obtuvo respuesta del GPS', 'warning');
-                },
-                { enableHighAccuracy: true, timeout: 7000 }
-            );
-        }
-
-        function checkStoredApiKey() {
-            const savedKey = localStorage.getItem('b2b_gmaps_key');
-            if (savedKey && savedKey.trim() !== '') {
-                loadGoogleMapsScript(savedKey.trim());
-            }
-        }
-
-        function loadGoogleMapsScript(key) {
-            const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&v=weekly&libraries=places`;
-            script.async = true;
-            script.defer = true;
-            script.onload = () => {
-                isGoogleMapsLoaded = true;
-                document.getElementById('demoModeBadge').innerText = 'API Activa';
-                document.getElementById('demoModeBadge').className = 'bg-emerald-500/20 text-emerald-300 text-[9px] px-1.5 py-0.5 rounded font-mono';
-                document.getElementById('engineBadge').innerText = 'Google Places';
-                showToast('Conectado a Google Places API', 'success');
-            };
-            script.onerror = () => {
-                isGoogleMapsLoaded = false;
-                showToast('Key no válida. Usando modo simulación', 'warning');
-            };
-            document.head.appendChild(script);
-        }
-
-        function initLeafletMap(lat, lng, zoom) {
-            const container = document.getElementById('mapCanvas');
-            container.innerHTML = '';
-
-            if (leafletMapInstance) leafletMapInstance.remove();
-
-            leafletMapInstance = L.map('mapCanvas', { zoomControl: false }).setView([lat, lng], zoom);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '&copy; OpenStreetMap'
-            }).addTo(leafletMapInstance);
-
-            // Add small zoom control on top right for mobile touch
-            L.control.zoom({ position: 'topright' }).addTo(leafletMapInstance);
-        }
-
-        function quickSearch(rubro, ciudad) {
-            document.getElementById('rubro').value = rubro;
-            document.getElementById('ciudad').value = ciudad;
-            switchTab('buscar');
-            ejecutarProspeccion();
-        }
-
-        async function ejecutarProspeccion() {
-            const rubroInput = document.getElementById('rubro').value.trim();
-            const ciudadInput = document.getElementById('ciudad').value.trim();
-            
-            if (!rubroInput) {
-                showToast('Ingresa un rubro comercial', 'info');
-                return;
-            }
-
-            showStatus(`Consultando locales de "${rubroInput}"...`);
-            clientesData = [];
-
-            if (isGoogleMapsLoaded && typeof google !== 'undefined' && google.maps && google.maps.places) {
-                await buscarConGooglePlaces(rubroInput, ciudadInput);
-            } else {
-                await buscarConModoSimulado(rubroInput, ciudadInput);
-            }
-
-            hideStatus();
-            aplicarFiltros();
-        }
-
-        async function buscarConGooglePlaces(rubroInput, ciudadInput) {
-            try {
-                const { Place } = await google.maps.importLibrary("places");
-                const request = {
-                    textQuery: `${rubroInput} en ${ciudadInput}, Chile`,
-                    fields: ['displayName', 'formattedAddress', 'rating', 'id', 'nationalPhoneNumber', 'websiteURI', 'location'],
-                    maxResultCount: 20,
-                    language: 'es-CL'
-                };
-
-                const { places } = await Place.searchByText(request);
-                if (places && places.length > 0) {
-                    places.forEach(place => {
-                        clientesData.push({
-                            id: place.id,
-                            nombre: place.displayName || 'Sin nombre',
-                            direccion: place.formattedAddress || 'Sin dirección',
-                            telefono: place.nationalPhoneNumber || '',
-                            website: place.websiteURI || '',
-                            rating: place.rating || null,
-                            lat: place.location ? place.location.lat() : null,
-                            lng: place.location ? place.location.lng() : null
-                        });
-                    });
-                }
-            } catch (err) {
-                await buscarConModoSimulado(rubroInput, ciudadInput);
-            }
-        }
-
-        async function buscarConModoSimulado(rubroInput, ciudadInput) {
-            await new Promise(r => setTimeout(r, 350));
-            
-            const rClean = rubroInput.toLowerCase();
-            const cClean = ciudadInput.toLowerCase();
-
-            let resultados = databaseDemoChile.filter(item => {
-                const matchRubro = item.rubro.includes(rClean) || rClean.includes(item.rubro) || rClean.length > 3;
-                const matchCiudad = item.ciudad.toLowerCase().includes(cClean) || cClean.includes(item.ciudad.toLowerCase()) || cClean.length > 3;
-                return matchRubro || matchCiudad;
-            });
-
-            if (resultados.length === 0) {
-                resultados = [
-                    { id: "gen_1", nombre: `${rubroInput} Gourmet ${ciudadInput}`, direccion: `Av. Principal 102, ${ciudadInput}`, telefono: "+56912345678", website: "https://ejemplonegocio.cl", rating: 4.8, lat: -33.4300, lng: -70.6100 },
-                    { id: "gen_2", nombre: `Taller de ${rubroInput} Artesanal`, direccion: `Calle Los Aromos 450, ${ciudadInput}`, telefono: "+56923456789", website: "", rating: 4.3, lat: -33.4350, lng: -70.6150 },
-                    { id: "gen_3", nombre: `Boutique & Packaging ${ciudadInput}`, direccion: `Plaza Mayor 88, ${ciudadInput}`, telefono: "+56987654321", website: "https://boutiquepack.cl", rating: 4.6, lat: -33.4250, lng: -70.6050 }
-                ];
-            }
-
-            clientesData = resultados;
-        }
-
-        function aplicarFiltros() {
-            const filterRatingVal = document.getElementById('filterRating').value;
-            const filterStatusVal = document.getElementById('filterStatus').value;
-
-            filteredData = clientesData.filter(cliente => {
-                const statusActual = crmStatuses[cliente.id] || 'Pendiente';
-                if (filterStatusVal !== 'all' && statusActual !== filterStatusVal) return false;
-
-                if (filterRatingVal === 'high' && (!cliente.rating || cliente.rating < 4.5)) return false;
-                if (filterRatingVal === 'mid' && (!cliente.rating || cliente.rating < 4.0 || cliente.rating >= 4.5)) return false;
-
-                return true;
-            });
-
-            renderizarResultados();
-        }
-
-        function cambiarEstadoCRM(clienteId, nuevoEstado) {
-            crmStatuses[clienteId] = nuevoEstado;
-            localStorage.setItem(LOCAL_STORAGE_CRM_KEY, JSON.stringify(crmStatuses));
-            showToast(`Estado CRM: ${nuevoEstado}`, 'info');
-            actualizarChartYMetricas(clientesData);
-        }
-
-        function renderizarResultados() {
-            const container = document.getElementById('cardsContainer');
-            container.innerHTML = '';
-
-            const summary = document.getElementById('searchResultSummary');
-            const counterText = document.getElementById('counterText');
-
-            if (filteredData.length === 0) {
-                summary.classList.add('hidden');
-                container.innerHTML = `
-                    <div class="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
-                        No hay prospectos que coincidan con los filtros seleccionados.
-                    </div>`;
-                actualizarChartYMetricas([]);
-                return;
-            }
-
-            summary.classList.remove('hidden');
-            counterText.innerText = `${filteredData.length} prospectos hallados`;
-
-            filteredData.forEach((cliente) => {
-                const statusActual = crmStatuses[cliente.id] || 'Pendiente';
-                const fonoLimpio = (cliente.telefono || '').replace(/\s+/g, '');
-
-                const pitchMsg = `Hola equipo de ${cliente.nombre}, vi su local en terreno y nos encantaría ofrecerles bolsas y packaging personalizado de excelente calidad para sus productos. ¿Tienen requerimientos que podamos cotizarles?`;
-                
-                const waLink = fonoLimpio 
-                    ? `https://wa.me/${fonoLimpio.replace('+', '')}?text=${encodeURIComponent(pitchMsg)}`
-                    : '#';
-
-                const gmapsNavUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cliente.nombre + ' ' + cliente.direccion)}`;
-
-                // Mobile Card Element
-                const card = document.createElement('div');
-                card.className = "bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm space-y-2.5 text-xs";
-                card.innerHTML = `
-                    <div class="flex justify-between items-start gap-2">
+            <!-- 1. VISTA DASHBOARD -->
+            <div id="view-dashboard" class="panel-view hidden flex-col h-full space-y-6 animate-fade">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
                         <div>
-                            <h3 class="font-bold text-slate-800 text-sm leading-tight">${escapeHtml(cliente.nombre)}</h3>
-                            <p class="text-slate-500 text-[11px] flex items-center gap-1 mt-0.5">
-                                <i class="fa-solid fa-location-dot text-slate-400 text-[10px]"></i>
-                                <span>${escapeHtml(cliente.direccion)}</span>
-                            </p>
+                            <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Total Leads CRM</p>
+                            <h3 id="stat-total" class="text-3xl font-extrabold text-slate-900 dark:text-white mt-1">0</h3>
                         </div>
-                        <span class="shrink-0 bg-amber-50 text-amber-800 px-2 py-0.5 rounded-lg font-bold text-[10px] border border-amber-200">
-                            ${cliente.rating ? `${cliente.rating} ⭐` : 'S/I'}
-                        </span>
+                        <div class="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-users"></i>
+                        </div>
+                    </div>
+                    <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Contactados</p>
+                            <h3 id="stat-contactados" class="text-3xl font-extrabold text-amber-600 dark:text-amber-400 mt-1">0</h3>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-headset"></i>
+                        </div>
+                    </div>
+                    <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-bold uppercase tracking-wider text-slate-400">En Negociación</p>
+                            <h3 id="stat-negociacion" class="text-3xl font-extrabold text-indigo-600 dark:text-indigo-400 mt-1">0</h3>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-handshake"></i>
+                        </div>
+                    </div>
+                    <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Cerrados / Clientes</p>
+                            <h3 id="stat-cerrados" class="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">0</h3>
+                        </div>
+                        <div class="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xl">
+                            <i class="fa-solid fa-circle-check"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                        <h3 class="font-bold text-base mb-4 text-slate-800 dark:text-white flex items-center gap-2">
+                            <i class="fa-solid fa-clock-rotate-left text-blue-500"></i> Actividad Reciente de Interacciones
+                        </h3>
+                        <div id="dashboard-activity-list" class="space-y-3 max-h-[340px] overflow-y-auto pr-2">
+                            <!-- Inyectado dinámicamente -->
+                        </div>
                     </div>
 
-                    <!-- Quick Details Badges -->
-                    <div class="flex flex-wrap items-center gap-2 text-[11px]">
-                        ${fonoLimpio ? `<a href="tel:${fonoLimpio}" class="text-blue-600 font-mono font-medium flex items-center gap-1"><i class="fa-solid fa-phone text-[10px]"></i> ${escapeHtml(cliente.telefono)}</a>` : '<span class="text-slate-400 text-[10px]">Sin fono</span>'}
-                        ${cliente.website ? `<a href="${cliente.website}" target="_blank" class="text-indigo-600 font-medium flex items-center gap-1"><i class="fa-solid fa-globe text-[10px]"></i> Sitio Web</a>` : ''}
+                    <div class="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+                        <div>
+                            <h3 class="font-bold text-base mb-2 text-slate-800 dark:text-white">Tips de Prospección B2B</h3>
+                            <p class="text-sm text-slate-500 dark:text-slate-400 mb-4">Maximiza tu tasa de conversión con buenas prácticas comerciales.</p>
+                            <ul class="space-y-3 text-sm text-slate-600 dark:text-slate-300">
+                                <li class="flex items-start gap-2.5">
+                                    <i class="fa-solid fa-circle-check text-emerald-500 mt-1"></i>
+                                    <span>Registra cada llamada o correo inmediatamente como nota en el CRM.</span>
+                                </li>
+                                <li class="flex items-start gap-2.5">
+                                    <i class="fa-solid fa-circle-check text-emerald-500 mt-1"></i>
+                                    <span>Filtra los negocios por ubicación en el mapa antes de salir a visitar en terreno.</span>
+                                </li>
+                                <li class="flex items-start gap-2.5">
+                                    <i class="fa-solid fa-circle-check text-emerald-500 mt-1"></i>
+                                    <span>Actualiza el pipeline a "Cerrado" al concretar la venta para medir tu éxito.</span>
+                                </li>
+                            </ul>
+                        </div>
+                        <button onclick="switchView('buscar', document.querySelectorAll('.nav-item')[1])" class="w-full mt-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold text-sm transition shadow-lg shadow-blue-600/20">
+                            Iniciar Nueva Búsqueda 🚀
+                        </button>
                     </div>
+                </div>
+            </div>
 
-                    <!-- Actions & Status Selector Bar -->
-                    <div class="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
-                        <!-- CRM Select -->
-                        <select onchange="cambiarEstadoCRM('${cliente.id}', this.value)" class="bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-[11px] py-1.5 px-2 focus:outline-none font-medium">
-                            <option value="Pendiente" ${statusActual === 'Pendiente' ? 'selected' : ''}>⏳ Sin Contactar</option>
-                            <option value="Contactado" ${statusActual === 'Contactado' ? 'selected' : ''}>📩 Contactado</option>
-                            <option value="Interesado" ${statusActual === 'Interesado' ? 'selected' : ''}>🔥 En Cotización</option>
-                            <option value="Ganado" ${statusActual === 'Ganado' ? 'selected' : ''}>✅ Venta Ganada</option>
-                        </select>
-
-                        <!-- Mobile Action Buttons -->
-                        <div class="flex items-center gap-1.5">
-                            <a href="${gmapsNavUrl}" target="_blank" class="bg-slate-100 hover:bg-slate-200 text-slate-700 p-2 rounded-xl text-xs flex items-center justify-center touch-active border border-slate-200" title="Navegar en Mapa">
-                                <i class="fa-solid fa-diamond-turn-right text-blue-600"></i>
-                            </a>
-                            ${fonoLimpio ? `
-                            <a href="${waLink}" target="_blank" class="bg-emerald-500 hover:bg-emerald-600 text-white p-2 rounded-xl text-xs flex items-center justify-center touch-active shadow-sm" title="WhatsApp">
-                                <i class="fa-brands fa-whatsapp text-sm"></i>
-                            </a>` : ''}
-                            <button onclick="compartirCliente('${escapeHtml(cliente.nombre)}', '${escapeHtml(cliente.direccion)}', '${fonoLimpio}')" class="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-xl text-xs flex items-center justify-center touch-active shadow-sm" title="Compartir Ficha">
-                                <i class="fa-solid fa-share-nodes"></i>
+            <!-- 2. VISTA BUSCADOR (API Google Places) -->
+            <div id="view-buscar" class="panel-view flex flex-col h-full space-y-4 animate-fade overflow-hidden">
+                <!-- Buscador Hero Header (Ampliado y con mayor protagonismo visual) -->
+                <div class="relative overflow-hidden bg-gradient-to-r from-blue-700 via-indigo-600 to-violet-700 px-8 py-6 rounded-3xl text-white shadow-xl shrink-0">
+                    <div class="absolute -right-10 -bottom-10 w-56 h-56 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
+                    <div class="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                        <div>
+                            <div class="flex items-center gap-2.5 mb-2">
+                                <span class="px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-[11px] font-extrabold uppercase tracking-wider inline-flex items-center gap-1.5 shadow-sm">
+                                    <i class="fa-solid fa-radar text-amber-300"></i> Google Places API Pro
+                                </span>
+                            </div>
+                            <h3 class="text-2xl font-black tracking-tight">Buscador Inteligente de Leads B2B</h3>
+                            <p class="text-blue-100 text-xs mt-1">Ej: <span class="underline decoration-amber-400 font-medium">Clínicas dentales en Las Condes</span> o <span class="underline decoration-amber-400 font-medium">Cafeterías en Providencia</span></p>
+                        </div>
+                        
+                        <div class="flex gap-3 w-full lg:w-auto max-w-2xl">
+                            <div class="relative flex-1 lg:w-96">
+                                <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-blue-200 text-sm"></i>
+                                <input type="text" id="query" placeholder="Rubro y ubicación (ej: Hoteles Santiago)..." class="w-full pl-11 pr-4 py-3.5 bg-white dark:bg-slate-900 border border-transparent rounded-2xl text-sm font-semibold focus:ring-4 focus:ring-white/30 outline-none text-slate-800 dark:text-white shadow-lg transition" onkeydown="if(event.key === 'Enter') ejecutarBusqueda(false)">
+                            </div>
+                            <button onclick="ejecutarBusqueda(false)" class="px-6 py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black rounded-2xl text-xs uppercase tracking-wider transition shadow-xl hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 shrink-0">
+                                <i class="fa-solid fa-bolt text-slate-950 text-sm"></i> Buscar Leads
                             </button>
                         </div>
                     </div>
-                `;
-                container.appendChild(card);
-            });
+                </div>
 
-            actualizarMapaCanvas();
-            actualizarChartYMetricas(filteredData);
+                <!-- Resultados Container -->
+                <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xl flex-1 flex flex-col min-h-0 overflow-hidden ring-1 ring-slate-900/5">
+                    <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-slate-50/80 dark:bg-slate-800/40 shrink-0">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-md shadow-blue-500/30">
+                                <i class="fa-solid fa-ranking-star"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-black text-xs text-slate-800 dark:text-white flex items-center gap-2">
+                                    Resultados Inteligentes 
+                                    <span id="results-count-badge" class="px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 text-[10px] font-bold">0 encontrados</span>
+                                </h3>
+                                <p id="results-count" class="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Selecciona o agrégalas directo al CRM con un clic</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2.5 w-full sm:w-auto justify-end flex-wrap">
+                        <label class="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition shadow-sm">
+                            <input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAllCheckbox(this)" class="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer">
+                            <span>Seleccionar Todos</span>
+                        </label>
+                        <button onclick="agregarSeleccionadosAlCRM()" class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-lg shadow-blue-600/25">
+                            <i class="fa-solid fa-circle-plus"></i> Agregar al CRM (<span id="selected-count-badge">0</span>)
+                        </button>
+                        <button onclick="exportarSeleccionadosCSV()" class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-lg shadow-emerald-600/25">
+                            <i class="fa-solid fa-file-arrow-down"></i> Exportar CSV
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Grid de Tarjetas Visuales (Estilizado y más compacto) -->
+                    <div class="flex-1 overflow-y-auto p-6 bg-slate-50/50 dark:bg-slate-950/30">
+                        <div id="resultados-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div class="col-span-full text-center py-20 text-slate-400">
+                                <div class="w-20 h-20 rounded-3xl bg-blue-50 dark:bg-blue-950/50 flex items-center justify-center mx-auto mb-4 text-3xl text-blue-500 shadow-inner border border-blue-100 dark:border-blue-900/50">
+                                    <i class="fa-solid fa-radar animate-pulse"></i>
+                                </div>
+                                <h4 class="font-extrabold text-slate-800 dark:text-slate-100 text-base mb-1.5">Tu radar comercial está listo</h4>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">Ingresa una categoría de negocios y ubicación en la parte superior para desplegar prospectos de alta calidad con datos de contacto verificados.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-3.5 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-center shrink-0">
+                        <button id="btnCargarMas" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition shadow-lg shadow-indigo-600/20 hidden flex items-center gap-2 hover:scale-105 active:scale-95">
+                            <i class="fa-solid fa-angles-down animate-bounce"></i> Cargar más resultados (Paginación API)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. VISTA CARTERA PIPELINE KANBAN & TABLA -->
+            <div id="view-cartera" class="panel-view hidden flex-col h-full space-y-6 animate-fade">
+                <div class="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                    <div class="flex items-center gap-3">
+                        <div class="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                            <button onclick="setCarteraMode('kanban')" id="btn-mode-kanban" class="px-4 py-2 rounded-lg text-xs font-bold transition bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm">
+                                <i class="fa-solid fa-columns mr-1"></i> Kanban
+                            </button>
+                            <button onclick="setCarteraMode('table')" id="btn-mode-table" class="px-4 py-2 rounded-lg text-xs font-bold transition text-slate-500 hover:text-slate-900 dark:hover:text-white">
+                                <i class="fa-solid fa-table mr-1"></i> Tabla Avanzada
+                            </button>
+                        </div>
+                        <div id="table-batch-actions" class="hidden items-center gap-2">
+                            <button onclick="eliminarSeleccionadosCartera()" class="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-1.5">
+                                <i class="fa-solid fa-trash-can"></i> Eliminar Selección (<span id="table-selected-count">0</span>)
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="relative">
+                            <i class="fa-solid fa-filter absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                            <input type="text" id="filtro-cartera" placeholder="Filtrar prospectos..." oninput="renderizarCartera()" class="pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none w-64 text-slate-800 dark:text-white">
+                        </div>
+                        <button onclick="abrirModalNuevoManual()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition shadow-md flex items-center gap-2">
+                            <i class="fa-solid fa-plus"></i> Nuevo Lead Manual
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Contenedor Kanban Pipeline -->
+                <div id="cartera-kanban-container" class="flex-1 grid grid-cols-1 md:grid-cols-4 gap-6 overflow-x-auto pb-4">
+                    <!-- Columnas inyectadas por JS -->
+                </div>
+
+                <!-- Contenedor Tabla Cartera -->
+                <div id="cartera-table-container" class="flex-1 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm hidden flex-col overflow-hidden">
+                    <div class="flex-1 overflow-y-auto">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead class="bg-slate-100 dark:bg-slate-800/80 text-slate-500 dark:text-slate-400 sticky top-0 z-10 text-xs uppercase tracking-wider font-semibold">
+                                <tr>
+                                    <th class="py-3 px-4 w-10 text-center">
+                                        <input type="checkbox" id="select-all-cartera-table" onchange="toggleSelectAllCarteraTable(this)" class="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer">
+                                    </th>
+                                    <th class="py-3 px-6">Negocio</th>
+                                    <th class="py-3 px-6">Teléfono</th>
+                                    <th class="py-3 px-6">Estado Pipeline</th>
+                                    <th class="py-3 px-6">Última Interacción / Nota</th>
+                                    <th class="py-3 px-6 text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cartera-table-body" class="divide-y divide-slate-200 dark:divide-slate-800"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. VISTA MAPA INTERACTIVO -->
+            <div id="view-mapa" class="panel-view hidden flex-col h-full space-y-4 animate-fade">
+                <div class="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
+                    <p class="text-sm text-slate-500 dark:text-slate-400 font-medium">
+                        <i class="fa-solid fa-circle-info text-blue-500 mr-1"></i> Visualiza en el mapa tus prospectos de la cartera o la última búsqueda realizada.
+                    </p>
+                    <span id="map-counter" class="text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg">0 pines en mapa</span>
+                </div>
+                <div id="map" class="flex-1 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm min-h-[500px] z-0"></div>
+            </div>
+
+            <!-- 5. VISTA CARTERA POR RUBRO -->
+            <div id="view-rubros" class="panel-view hidden flex-col h-full space-y-6 animate-fade">
+                <div class="bg-gradient-to-r from-violet-700 via-purple-600 to-indigo-700 p-8 rounded-3xl text-white shadow-xl relative overflow-hidden shrink-0">
+                    <div class="absolute right-0 top-0 translate-x-8 -translate-y-8 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+                    <div class="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-5">
+                        <div>
+                            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-[11px] font-extrabold uppercase tracking-wider mb-2 shadow-sm">
+                                <i class="fa-solid fa-layer-group text-amber-300"></i> Inteligencia por Rubros
+                            </div>
+                            <h3 class="text-2xl font-black tracking-tight">Cartera Clasificada por Giro Comercial</h3>
+                            <p class="text-violet-100 text-xs mt-1">Explora, analiza y filtra tu base de leads agrupada por categorías comerciales.</p>
+                        </div>
+                        <div class="w-full md:w-80">
+                            <div class="relative">
+                                <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-violet-200 text-sm"></i>
+                                <input type="text" id="filtro-rubros" placeholder="Buscar rubro o negocio..." oninput="renderizarRubros()" class="w-full pl-11 pr-4 py-3.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl text-sm font-semibold text-white placeholder-violet-200 outline-none focus:ring-4 focus:ring-white/20 shadow-lg transition">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="rubros-container" class="flex-1 overflow-y-auto space-y-6 pr-1">
+                    <!-- Inyectado por JS -->
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Modal CRM Interactivo & Historial de Interacciones -->
+    <div id="crm-modal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4 animate-fade">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
+                <div>
+                    <h3 class="font-bold text-lg text-slate-800 dark:text-white" id="modal-title-text">Gestionar Prospecto</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Actualiza datos y registra interacciones con el cliente.</p>
+                </div>
+                <button onclick="cerrarModal()" class="w-8 h-8 rounded-lg bg-slate-200/60 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-700 transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="p-6 overflow-y-auto space-y-5 flex-1">
+                <input type="hidden" id="modal-id">
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Nombre del Negocio</label>
+                        <input type="text" id="modal-nombre" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-800 dark:text-white outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Teléfono / Contacto</label>
+                        <input type="text" id="modal-telefono" placeholder="Ej: +56 9 1234 5678" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Estado del Pipeline</label>
+                        <select id="modal-estado" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="Nuevo">Nuevo Lead</option>
+                            <option value="Contactado">Contactado / En Proceso</option>
+                            <option value="Negociacion">En Negociación</option>
+                            <option value="Cerrado">Cerrado / Cliente Ganado</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Dirección</label>
+                        <input type="text" id="modal-direccion" placeholder="Dirección del local" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white outline-none">
+                    </div>
+                </div>
+
+                <!-- Historial de Interacciones -->
+                <div class="border-t border-slate-200 dark:border-slate-800 pt-4 mt-2">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center justify-between">
+                        <span>Historial de Interacciones y Seguimiento</span>
+                        <span class="text-blue-500 lowercase font-normal text-xs">Anota llamadas, reuniones o correos</span>
+                    </label>
+
+                    <div class="flex gap-2 mb-3">
+                        <input type="text" id="nueva-interaccion-input" placeholder="Escribe un avance o nota de interacción..." class="flex-1 px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" onkeydown="if(event.key === 'Enter') agregarInteraccion()">
+                        <button onclick="agregarInteraccion()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-semibold transition shadow-sm">
+                            <i class="fa-solid fa-plus mr-1"></i> Agregar Nota
+                        </button>
+                    </div>
+
+                    <div id="modal-historial-lista" class="space-y-2 max-h-40 overflow-y-auto pr-1">
+                        <!-- Historial inyectado -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-3">
+                <button onclick="cerrarModal()" class="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 transition">Cancelar</button>
+                <button onclick="guardarEnCRM()" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-semibold transition shadow-lg shadow-emerald-600/20">Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS & App Script -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const API_KEY = "AIzaSyAFD0G0_KmC1gxzlyH9-E37m5oUODJ7fcA";
+        let nextPageTokenGlobal = null;
+        let carteraDb = JSON.parse(localStorage.getItem('crm_b2b_cartera_v2')) || [];
+        let searchResultsCache = [];
+        let map = null;
+        let markersLayer = null;
+        let carteraMode = 'kanban';
+        let selectedSearchIds = new Set();
+        let selectedCarteraTableIds = new Set();
+
+        // Dark mode init
+        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
         }
 
-        function actualizarMapaCanvas() {
-            if (leafletMapInstance) {
-                mapMarkers.forEach(m => leafletMapInstance.removeLayer(m));
-                mapMarkers = [];
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark');
+            if (map) setTimeout(() => map.invalidateSize(), 200);
+        }
 
-                const bounds = [];
-                filteredData.forEach(c => {
-                    if (c.lat && c.lng) {
-                        const marker = L.marker([c.lat, c.lng]).addTo(leafletMapInstance);
-                        marker.bindPopup(`
-                            <div class="text-xs">
-                                <strong class="text-slate-800 block text-sm mb-0.5">${escapeHtml(c.nombre)}</strong>
-                                <p class="text-slate-500 text-[11px] mb-1">${escapeHtml(c.direccion)}</p>
-                                <a href="tel:${c.telefono}" class="text-blue-600 font-semibold font-mono text-[11px]">${escapeHtml(c.telefono || 'Sin teléfono')}</a>
-                            </div>
-                        `);
-                        mapMarkers.push(marker);
-                        bounds.push([c.lat, c.lng]);
+        function switchView(viewId, element) {
+            document.querySelectorAll('.panel-view').forEach(el => el.classList.remove('flex', 'hidden'));
+            document.querySelectorAll('.panel-view').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-item').forEach(el => {
+                el.classList.remove('bg-blue-600', 'text-white', 'shadow-lg', 'shadow-blue-600/20');
+                el.classList.add('text-slate-300', 'hover:bg-slate-800/80', 'hover:text-white');
+            });
+
+            const targetView = document.getElementById('view-' + viewId);
+            targetView.classList.remove('hidden');
+            targetView.classList.add('flex');
+
+            if(element) {
+                element.classList.remove('text-slate-300', 'hover:bg-slate-800/80', 'hover:text-white');
+                element.classList.add('bg-blue-600', 'text-white', 'shadow-lg', 'shadow-blue-600/20');
+            }
+
+            const titles = {
+                'dashboard': 'Dashboard General',
+                'buscar': 'Buscador Inteligente de Leads',
+                'cartera': 'Pipeline Comercial CRM',
+                'rubros': 'Cartera de Clientes por Rubro',
+                'mapa': 'Mapa Geográfico de Prospectos'
+            };
+            document.getElementById('topbar-title').innerText = titles[viewId];
+
+            if(viewId === 'mapa') {
+                setTimeout(() => initMap(), 150);
+            }
+            if(viewId === 'cartera') {
+                renderizarCartera();
+            }
+            if(viewId === 'rubros') {
+                renderizarRubros();
+            }
+            if(viewId === 'dashboard') {
+                actualizarDashboard();
+            }
+            actualizarContadorSidebar();
+        }
+
+        function initMap() {
+            if (!map) {
+                map = L.map('map').setView([-33.4489, -70.6693], 13);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap contributors'
+                }).addTo(map);
+                markersLayer = L.layerGroup().addTo(map);
+            } else {
+                map.invalidateSize();
+            }
+            cargarPinesEnMapa();
+        }
+
+        function cargarPinesEnMapa() {
+            if (!map || !markersLayer) return;
+            markersLayer.clearLayers();
+
+            let count = 0;
+            // Primero cargamos cartera CRM
+            carteraDb.forEach(item => {
+                if (item.lat && item.lng) {
+                    const marker = L.marker([item.lat, item.lng]).bindPopup(`
+                        <div style="font-family: Inter, sans-serif; padding: 4px;">
+                            <strong style="font-size: 14px; color: #1e293b;">${item.nombre}</strong><br>
+                            <span style="font-size: 12px; color: #64748b;">Estado: <b>${item.estado}</b></span><br>
+                            <span style="font-size: 12px; color: #64748b;">${item.telefono || 'Sin teléfono'}</span>
+                        </div>
+                    `);
+                    markersLayer.addLayer(marker);
+                    count++;
+                }
+            });
+
+            // Si la cartera no tiene ubicación, cargamos los de búsqueda reciente
+            if (count === 0 && searchResultsCache.length > 0) {
+                searchResultsCache.forEach(place => {
+                    if (place.location) {
+                        const marker = L.marker([place.location.latitude, place.location.longitude]).bindPopup(`<b>${place.displayName ? place.displayName.text : 'Negocio'}</b>`);
+                        markersLayer.addLayer(marker);
+                        count++;
                     }
                 });
-
-                if (bounds.length > 0) {
-                    leafletMapInstance.fitBounds(bounds, { padding: [30, 30] });
-                }
             }
+
+            document.getElementById('map-counter').innerText = `${count} pines en mapa`;
         }
 
-        function initChart(dataCounts) {
-            const ctx = document.getElementById('ratingsChart').getContext('2d');
-            if (chartInstance) chartInstance.destroy();
-
-            chartInstance = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['4.5-5.0 ⭐', '4.0-4.4 ⭐', 'Bajo 4.0 ⭐', 'Sin Rating'],
-                    datasets: [{
-                        data: dataCounts,
-                        backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#cbd5e1'],
-                        borderWidth: 2,
-                        borderColor: '#ffffff'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'right', labels: { boxWidth: 8, font: { size: 9, family: 'Inter' } } }
-                    },
-                    cutout: '65%'
-                }
-            });
+        function actualizarContadorSidebar() {
+            const total = carteraDb.length;
+            document.getElementById('counter-badge').innerText = total;
+            const cerrados = carteraDb.filter(c => c.estado === 'Cerrado').length;
+            const porcentaje = total > 0 ? Math.round((cerrados / total) * 100) : 0;
+            document.getElementById('pipeline-progress').style.width = `${porcentaje}%`;
         }
 
-        function actualizarChartYMetricas(data) {
-            let excelente = 0, bueno = 0, regular = 0, sinRating = 0;
-            let contactados = 0;
+        async function ejecutarBusqueda(esPaginacion = false) {
+            const queryText = document.getElementById('query').value.trim();
+            const statusBadge = document.getElementById('status-badge');
+            const gridContainer = document.getElementById('resultados-grid');
+            const btnMas = document.getElementById('btnCargarMas');
 
-            let stageCounts = { Pendiente: 0, Contactado: 0, Interesado: 0, Ganado: 0 };
-
-            data.forEach(c => {
-                const st = crmStatuses[c.id] || 'Pendiente';
-                stageCounts[st] = (stageCounts[st] || 0) + 1;
-
-                if (st !== 'Pendiente') contactados++;
-
-                if (!c.rating) sinRating++;
-                else if (c.rating >= 4.5) excelente++;
-                else if (c.rating >= 4.0) bueno++;
-                else regular++;
-            });
-
-            initChart([excelente, bueno, regular, sinRating]);
-            
-            document.getElementById('metricTotal').innerText = data.length;
-            document.getElementById('metricContacted').innerText = contactados;
-            document.getElementById('metricVisits').innerText = visitasTerreno.length;
-
-            document.getElementById('stagePendiente').innerText = stageCounts.Pendiente;
-            document.getElementById('stageContactado').innerText = stageCounts.Contactado;
-            document.getElementById('stageInteresado').innerText = stageCounts.Interesado;
-            document.getElementById('stageGanado').innerText = stageCounts.Ganado;
-        }
-
-        function openCheckinModal() { document.getElementById('checkinModal').classList.remove('hidden'); }
-        function closeCheckinModal() { document.getElementById('checkinModal').classList.add('hidden'); }
-
-        function guardarVisitaTerreno() {
-            const nombre = document.getElementById('visitNombre').value.trim();
-            const resultado = document.getElementById('visitResultado').value;
-            const notas = document.getElementById('visitNotas').value.trim();
-
-            if (!nombre) {
-                showToast('Ingresa el nombre del local', 'warning');
+            if (!queryText && !esPaginacion) {
+                mostrarNotificacion("Por favor ingresa una categoría y ubicación para buscar.", "error");
                 return;
             }
 
-            const nuevaVisita = {
-                id: 'v_' + Date.now(),
-                nombre: nombre,
-                resultado: resultado,
-                notas: notas || 'Sin observaciones.',
-                fecha: new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })
-            };
-
-            visitasTerreno.unshift(nuevaVisita);
-            localStorage.setItem(LOCAL_STORAGE_VISITAS_KEY, JSON.stringify(visitasTerreno));
-            
-            closeCheckinModal();
-            document.getElementById('visitNombre').value = '';
-            document.getElementById('visitNotas').value = '';
-
-            renderizarVisitas();
-            actualizarChartYMetricas(clientesData);
-            showToast('Check-In de visita registrado con GPS', 'success');
-        }
-
-        function renderizarVisitas() {
-            const container = document.getElementById('visitasListContainer');
-            container.innerHTML = '';
-
-            if (visitasTerreno.length === 0) {
-                container.innerHTML = `
-                    <div class="bg-white p-6 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
-                        <i class="fa-solid fa-clipboard-user text-2xl mb-1 text-slate-300 block"></i>
-                        Aún no se han registrado visitas en terreno hoy.
-                    </div>`;
-                return;
-            }
-
-            visitasTerreno.forEach(v => {
-                const card = document.createElement('div');
-                card.className = "bg-white p-3 rounded-2xl border border-slate-200/80 shadow-sm space-y-1 text-xs";
-                card.innerHTML = `
-                    <div class="flex justify-between items-start">
-                        <h4 class="font-bold text-slate-800 text-xs">${escapeHtml(v.nombre)}</h4>
-                        <span class="text-[9px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-mono">${v.fecha}</span>
+            statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> Consultando Google Places...`;
+            if (!esPaginacion) {
+                gridContainer.innerHTML = `
+                    <div class="col-span-full text-center py-24 text-slate-400">
+                        <div class="w-20 h-20 rounded-3xl bg-blue-50 dark:bg-blue-950/50 flex items-center justify-center mx-auto mb-4 text-3xl text-blue-600 animate-bounce shadow-xl border border-blue-100 dark:border-blue-900">
+                            <i class="fa-solid fa-compass"></i>
+                        </div>
+                        <h4 class="font-extrabold text-slate-800 dark:text-slate-100 text-lg mb-1">Escaneando negocios en la zona...</h4>
+                        <p class="text-xs text-slate-400">Conectando con la base de datos geográfica en tiempo real.</p>
                     </div>
-                    <p class="text-blue-600 font-semibold text-[11px]">${escapeHtml(v.resultado)}</p>
-                    <p class="text-slate-500 text-[10px] bg-slate-50 p-2 rounded-xl border border-slate-100">${escapeHtml(v.notas)}</p>
                 `;
-                container.appendChild(card);
-            });
-        }
+                searchResultsCache = [];
+                selectedSearchIds.clear();
+                actualizarBadgeSeleccionados();
+                document.getElementById('select-all-checkbox').checked = false;
+            }
+            btnMas.style.display = 'none';
 
-        async function compartirCliente(nombre, direccion, fono) {
-            const shareData = {
-                title: `Prospecto Packaging: ${nombre}`,
-                text: `📍 ${nombre}\nDirección: ${direccion}\nTeléfono: ${fono || 'S/I'}\nEmpresa interesada en packaging.`
-            };
+            const payload = { textQuery: queryText || document.getElementById('query').value.trim(), languageCode: "es" };
+            if (esPaginacion && nextPageTokenGlobal) {
+                payload.pageToken = nextPageTokenGlobal;
+            }
 
-            if (navigator.share) {
-                try {
-                    await navigator.share(shareData);
-                } catch (e) {
-                    console.log('Compartir cancelado');
+            try {
+                if (esPaginacion) {
+                    statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span> Cargando más resultados...`;
+                    await new Promise(resolve => setTimeout(resolve, 1500));
                 }
-            } else {
-                navigator.clipboard.writeText(shareData.text);
-                showToast('Ficha copiada al portapapeles', 'info');
+
+                const response = await fetch("https://places.googleapis.com/v1/places:searchText", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-Goog-Api-Key": API_KEY,
+                        "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.websiteUri,places.location,nextPageToken"
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                if (data.error) {
+                    statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-500"></span> Error API`;
+                    mostrarNotificacion(`Error: ${data.error.message}`, "error");
+                    return;
+                }
+
+                if (!data.places || data.places.length === 0) {
+                    statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-blue-500"></span> Búsqueda finalizada`;
+                    if(!esPaginacion) {
+                        gridContainer.innerHTML = `
+                            <div class="col-span-full text-center py-24 text-slate-400">
+                                <i class="fa-solid fa-face-frown text-4xl mb-3 block text-amber-500"></i>
+                                <h4 class="font-extrabold text-slate-800 dark:text-slate-100 text-base mb-1">No se encontraron resultados</h4>
+                                <p class="text-xs text-slate-400">Prueba con otra zona o término de búsqueda más amplio.</p>
+                            </div>
+                        `;
+                    }
+                    return;
+                }
+
+                statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span> Resultados listos`;
+                if (!esPaginacion) gridContainer.innerHTML = '';
+
+                data.places.forEach(place => {
+                    searchResultsCache.push(place);
+                    const id = place.id || Math.random().toString(36).substring(7);
+                    const nombre = place.displayName ? place.displayName.text : 'Negocio Comercial';
+                    const direccion = place.formattedAddress || 'Dirección no especificada';
+                    const telefono = place.nationalPhoneNumber || '';
+                    const web = place.websiteUri ? `<a href="${place.websiteUri}" target="_blank" class="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-900/80 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition text-[11px] font-semibold flex items-center gap-1"><i class="fa-solid fa-globe"></i> Web</a>` : `<span class="text-slate-400 dark:text-slate-600 text-[11px] italic py-1 px-2">Sin web</span>`;
+
+                    const lat = place.location ? place.location.latitude : null;
+                    const lng = place.location ? place.location.longitude : null;
+
+                    const enCartera = carteraDb.some(c => c.id === id);
+                    const btnClass = enCartera ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/25' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-blue-600/25';
+                    const btnText = enCartera ? '<i class="fa-solid fa-circle-check mr-1"></i> En Cartera' : '<i class="fa-solid fa-circle-plus mr-1"></i> Agregar al CRM';
+
+                    let cleanPhone = telefono.replace(/[^0-9+]/g, '');
+                    let whatsappBtn = '';
+                    if (cleanPhone) {
+                        whatsappBtn = `<a href="https://wa.me/${cleanPhone.replace('+', '')}?text=${encodeURIComponent('Hola ' + nombre + ', te contactamos desde B2B Pro Suite.')}" target="_blank" class="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/80 hover:bg-emerald-100 transition text-[11px] font-bold flex items-center gap-1" title="Enviar WhatsApp">
+                            <i class="fa-brands fa-whatsapp text-emerald-500"></i> WhatsApp
+                        </a>`;
+                    } else {
+                        whatsappBtn = `<span class="text-slate-400 dark:text-slate-600 text-[11px] italic px-2 py-1">Sin celular</span>`;
+                    }
+
+                    const isChecked = selectedSearchIds.has(id) ? 'checked' : '';
+
+                    const card = document.createElement('div');
+                    card.className = "group bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-4.5 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between relative hover:-translate-y-1 ring-1 ring-slate-900/5";
+                    card.innerHTML = `
+                        <div class="absolute top-4 right-4 z-10 flex items-center gap-2">
+                            <input type="checkbox" value="${id}" ${isChecked} onchange="toggleSelectResult('${id}', this)" class="row-checkbox w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer shadow-sm border-slate-300">
+                        </div>
+                        
+                        <div class="space-y-2.5 pr-8">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-md shadow-blue-500/20 shrink-0">
+                                    <i class="fa-solid fa-store"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-xs text-slate-900 dark:text-white leading-snug group-hover:text-blue-600 dark:group-hover:text-blue-400 transition">${nombre}</h4>
+                                    <span class="inline-block mt-0.5 px-2 py-0.2 rounded-full bg-slate-100 dark:bg-slate-800 text-[9px] font-bold uppercase tracking-wider text-slate-500">Lead Comercial</span>
+                                </div>
+                            </div>
+
+                            <div class="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 pt-0.5">
+                                <p class="flex items-start gap-2 bg-slate-50 dark:bg-slate-800/40 p-2 rounded-xl border border-slate-100 dark:border-slate-800">
+                                    <i class="fa-solid fa-location-dot text-blue-500 mt-0.5 shrink-0 text-[11px]"></i>
+                                    <span class="line-clamp-2 leading-tight font-medium text-[11px]">${direccion}</span>
+                                </p>
+                                <p class="flex items-center gap-2 px-0.5">
+                                    <i class="fa-solid fa-phone text-slate-400 shrink-0 text-[11px]"></i>
+                                    <span class="font-bold text-slate-800 dark:text-slate-200 text-[11px]">${telefono || 'Teléfono no disponible'}</span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="pt-3.5 mt-3.5 border-t border-slate-100 dark:border-slate-800/80 space-y-2.5">
+                            <div class="flex items-center justify-between gap-1.5 flex-wrap">
+                                ${whatsappBtn}
+                                ${web}
+                            </div>
+                            <button onclick='abrirModalCRMFromSearch(${JSON.stringify({id, nombre, direccion, telefono, lat, lng})})' class="w-full py-2.5 rounded-xl text-[11px] font-extrabold transition shadow-md flex items-center justify-center gap-1.5 ${btnClass}">
+                                ${btnText}
+                            </button>
+                        </div>
+                    `;
+                    gridContainer.appendChild(card);
+                });
+
+                document.getElementById('results-count').innerText = `${searchResultsCache.length} prospectos encontrados en total`;
+                document.getElementById('results-count-badge').innerText = `${searchResultsCache.length} encontrados`;
+
+                if (data.nextPageToken) {
+                    nextPageTokenGlobal = data.nextPageToken;
+                    btnMas.style.display = 'flex';
+                    btnMas.onclick = () => ejecutarBusqueda(true);
+                } else {
+                    nextPageTokenGlobal = null;
+                    btnMas.style.display = 'none';
+                }
+            } catch (error) {
+                statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-500"></span> Error de red`;
+                mostrarNotificacion(`Error de red: ${error.message}`, "error");
             }
         }
 
-        function exportarCSV() {
-            if (filteredData.length === 0) {
-                showToast('No hay datos para exportar', 'warning');
+        function toggleSelectResult(id, checkbox) {
+            if (checkbox.checked) {
+                selectedSearchIds.add(id);
+            } else {
+                selectedSearchIds.delete(id);
+            }
+            actualizarBadgeSeleccionados();
+        }
+
+        function actualizarBadgeSeleccionados() {
+            document.getElementById('selected-count-badge').innerText = selectedSearchIds.size;
+        }
+
+        function toggleSelectAllCheckbox(masterCheckbox) {
+            const checkboxes = document.querySelectorAll('.row-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = masterCheckbox.checked;
+                const id = cb.value;
+                if (masterCheckbox.checked) {
+                    selectedSearchIds.add(id);
+                } else {
+                    selectedSearchIds.delete(id);
+                }
+            });
+            actualizarBadgeSeleccionados();
+        }
+
+        function seleccionarTodosResultados(seleccionar) {
+            const master = document.getElementById('select-all-checkbox');
+            master.checked = seleccionar;
+            const checkboxes = document.querySelectorAll('.row-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = seleccionar;
+                const id = cb.value;
+                if (seleccionar) {
+                    selectedSearchIds.add(id);
+                } else {
+                    selectedSearchIds.delete(id);
+                }
+            });
+            actualizarBadgeSeleccionados();
+        }
+
+        function exportarSeleccionadosCSV() {
+            let itemsToExport = [];
+            if (selectedSearchIds.size > 0) {
+                itemsToExport = searchResultsCache.filter(p => selectedSearchIds.has(p.id));
+            } else {
+                itemsToExport = searchResultsCache; // Si no hay selección manual, exporta todos los cargados en la tabla
+            }
+
+            if (itemsToExport.length === 0) {
+                mostrarNotificacion("No hay resultados seleccionados o disponibles para exportar.", "error");
                 return;
             }
 
-            let csvContent = "\uFEFFID;Nombre Negocio;Dirección;Teléfono;Website;Rating;Estado CRM\n";
-            filteredData.forEach(c => {
-                const st = crmStatuses[c.id] || 'Pendiente';
-                csvContent += `"${c.id}";"${c.nombre}";"${c.direccion}";"${c.telefono}";"${c.website}";"${c.rating || ''}";"${st}"\n`;
+            let csvContent = "data:text/csv;charset=utf-8,Nombre,Direccion,Telefono,SitioWeb\n";
+            itemsToExport.forEach(p => {
+                const nombre = p.displayName ? p.displayName.text.replace(/"/g, '""') : '';
+                const direccion = (p.formattedAddress || '').replace(/"/g, '""');
+                const telefono = p.nationalPhoneNumber || '';
+                const web = p.websiteUri || '';
+                csvContent += `"${nombre}","${direccion}","${telefono}","${web}"\n`;
             });
 
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.setAttribute('href', url);
-            link.setAttribute('download', `prospeccion_terreno_${new Date().toISOString().slice(0, 10)}.csv`);
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "prospectos_busqueda_b2b.csv");
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            showToast('CSV exportado con éxito', 'success');
+            mostrarNotificacion(`Exportados ${itemsToExport.length} prospectos a CSV con éxito.`, "success");
         }
 
-        function openApiKeyModal() { document.getElementById('apiKeyModal').classList.remove('hidden'); }
-        function closeApiKeyModal() { document.getElementById('apiKeyModal').classList.add('hidden'); }
+        function agregarSeleccionadosAlCRM() {
+            if (selectedSearchIds.size === 0) {
+                mostrarNotificacion("Por favor selecciona al menos un prospecto para agregar al CRM.", "error");
+                return;
+            }
 
-        function saveApiKey() {
-            const val = document.getElementById('userApiKeyInput').value.trim();
-            if (val) localStorage.setItem('b2b_gmaps_key', val);
-            else localStorage.removeItem('b2b_gmaps_key');
-            closeApiKeyModal();
-            location.reload();
+            let agregadosCount = 0;
+            selectedSearchIds.forEach(id => {
+                const place = searchResultsCache.find(p => p.id === id);
+                if (place) {
+                    const existente = carteraDb.some(c => c.id === place.id);
+                    if (!existente) {
+                        const nombre = place.displayName ? place.displayName.text : 'Negocio Comercial';
+                        const direccion = place.formattedAddress || '';
+                        const telefono = place.nationalPhoneNumber || '';
+                        const lat = place.location ? place.location.latitude : null;
+                        const lng = place.location ? place.location.longitude : null;
+
+                        // Intentamos inferir el rubro a partir del texto de búsqueda actual si existe, o categoría genérica
+                        const queryVal = document.getElementById('query').value.trim();
+                        let rubroInferido = queryVal ? queryVal.charAt(0).toUpperCase() + queryVal.slice(1) : 'General / Sin Clasificar';
+
+                        carteraDb.unshift({
+                            id: place.id,
+                            nombre,
+                            telefono,
+                            direccion,
+                            rubro: rubroInferido,
+                            estado: 'Nuevo',
+                            lat,
+                            lng,
+                            historial: [{ fecha: new Date().toLocaleDateString(), texto: 'Lead importado masivamente desde Buscador API.' }]
+                        });
+                        agregadosCount++;
+                    }
+                }
+            });
+
+            if (agregadosCount > 0) {
+                localStorage.setItem('crm_b2b_cartera_v2', JSON.stringify(carteraDb));
+                actualizarContadorSidebar();
+            }
+
+            // Recargar vista de resultados actual sin hacer fetch nuevo
+            const gridContainer = document.getElementById('resultados-grid');
+            if(searchResultsCache.length > 0) {
+                const cards = gridContainer.children;
+                searchResultsCache.forEach((place, index) => {
+                    const card = cards[index];
+                    if(card) {
+                        const enCartera = carteraDb.some(c => c.id === place.id);
+                        const btn = card.querySelector('button:last-of-type');
+                        if(btn && enCartera) {
+                            btn.className = "w-full py-2.5 rounded-xl text-[11px] font-extrabold transition shadow-md flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/25";
+                            btn.innerHTML = '<i class="fa-solid fa-circle-check mr-1"></i> En Cartera';
+                        }
+                    }
+                });
+            }
+
+            mostrarNotificacion(`Se agregaron ${agregadosCount} nuevos prospectos al CRM exitosamente.`, "success");
         }
 
-        function showStatus(text) {
-            const statusDiv = document.getElementById('status');
-            document.getElementById('statusText').innerText = text;
-            statusDiv.classList.remove('hidden');
-            statusDiv.classList.add('flex');
-        }
+        let modalHistorialTemp = [];
 
-        function hideStatus() {
-            document.getElementById('status').classList.add('hidden');
-        }
+        function abrirModalCRMFromSearch(place) {
+            const existente = carteraDb.find(c => c.id === place.id);
+            const queryVal = document.getElementById('query').value.trim();
+            const rubroDefault = queryVal ? queryVal.charAt(0).toUpperCase() + queryVal.slice(1) : 'General / Sin Clasificar';
 
-        function showToast(message, type = 'info') {
-            const container = document.getElementById('toastContainer');
-            const toast = document.createElement('div');
-            
-            const colors = {
-                success: 'bg-emerald-900 text-emerald-100 border-emerald-700',
-                warning: 'bg-amber-900 text-amber-100 border-amber-700',
-                info: 'bg-slate-900 text-slate-100 border-slate-700'
+            const lead = existente || {
+                id: place.id,
+                nombre: place.nombre,
+                telefono: place.telefono !== 'No disponible' ? place.telefono : '',
+                direccion: place.direccion,
+                rubro: place.rubro || rubroDefault,
+                estado: 'Nuevo',
+                lat: place.lat,
+                lng: place.lng,
+                historial: [{ fecha: new Date().toLocaleDateString(), texto: 'Lead importado desde Buscador API.' }]
             };
 
-            toast.className = `px-3.5 py-2.5 rounded-xl border shadow-xl text-xs font-medium transition duration-300 transform -translate-y-2 flex items-center gap-2 ${colors[type] || colors.info}`;
-            toast.innerHTML = `<span>${escapeHtml(message)}</span>`;
+            document.getElementById('modal-id').value = lead.id;
+            document.getElementById('modal-nombre').value = lead.nombre;
+            document.getElementById('modal-telefono').value = lead.telefono || '';
+            document.getElementById('modal-direccion').value = lead.direccion || '';
+            document.getElementById('modal-estado').value = lead.estado;
+            
+            // Aseguramos campo de rubro en el modal si no existe en HTML anterior lo inyectamos o creamos
+            let rubroInput = document.getElementById('modal-rubro');
+            if (!rubroInput) {
+                // Creamos dinámicamente el input de rubro si el DOM no lo tenía
+                const containerParent = document.getElementById('modal-estado').parentElement.parentElement;
+                const divRubro = document.createElement('div');
+                divRubro.className = "col-span-full md:col-span-2";
+                divRubro.innerHTML = `
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Rubro / Giro Comercial</label>
+                    <input type="text" id="modal-rubro" placeholder="Ej: Hotelería, Gastronomía, Salud..." class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-violet-500">
+                `;
+                containerParent.insertBefore(divRubro, containerParent.firstChild);
+                rubroInput = document.getElementById('modal-rubro');
+            }
+            rubroInput.value = lead.rubro || 'General';
 
-            container.appendChild(toast);
-            setTimeout(() => toast.classList.remove('-translate-y-2'), 10);
+            document.getElementById('modal-title-text').innerText = existente ? `Gestionar: ${lead.nombre}` : `Agregar a CRM: ${lead.nombre}`;
+            
+            modalHistorialTemp = JSON.parse(JSON.stringify(lead.historial || []));
+            renderizarHistorialModal();
 
-            setTimeout(() => {
-                toast.classList.add('opacity-0', '-translate-y-2');
-                setTimeout(() => toast.remove(), 300);
-            }, 3000);
+            document.getElementById('crm-modal').classList.remove('hidden');
+            document.getElementById('crm-modal').classList.add('flex');
         }
 
-        function escapeHtml(text) {
-            if (!text) return '';
-            return String(text)
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
+        function abrirModalManual(id = null) {
+            let lead = carteraDb.find(c => c.id === id) || {
+                id: 'manual_' + Date.now(),
+                nombre: '',
+                telefono: '',
+                direccion: '',
+                rubro: 'General / Sin Clasificar',
+                estado: 'Nuevo',
+                lat: null,
+                lng: null,
+                historial: [{ fecha: new Date().toLocaleDateString(), texto: 'Lead creado manualmente en CRM.' }]
+            };
+
+            document.getElementById('modal-id').value = lead.id;
+            document.getElementById('modal-nombre').value = lead.nombre;
+            document.getElementById('modal-telefono').value = lead.telefono || '';
+            document.getElementById('modal-direccion').value = lead.direccion || '';
+            document.getElementById('modal-estado').value = lead.estado;
+
+            let rubroInput = document.getElementById('modal-rubro');
+            if (!rubroInput) {
+                const containerParent = document.getElementById('modal-estado').parentElement.parentElement;
+                const divRubro = document.createElement('div');
+                divRubro.className = "col-span-full md:col-span-2";
+                divRubro.innerHTML = `
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Rubro / Giro Comercial</label>
+                    <input type="text" id="modal-rubro" placeholder="Ej: Hotelería, Gastronomía, Salud..." class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-violet-500">
+                `;
+                containerParent.insertBefore(divRubro, containerParent.firstChild);
+                rubroInput = document.getElementById('modal-rubro');
+            }
+            rubroInput.value = lead.rubro || 'General';
+
+            document.getElementById('modal-title-text').innerText = id ? `Editar Lead: ${lead.nombre}` : 'Nuevo Lead Manual';
+
+            modalHistorialTemp = JSON.parse(JSON.stringify(lead.historial || []));
+            renderizarHistorialModal();
+
+            document.getElementById('crm-modal').classList.remove('hidden');
+            document.getElementById('crm-modal').classList.add('flex');
         }
+
+        function abrirModalNuevoManual() {
+            abrirModalManual(null);
+        }
+
+        function cerrarModal() {
+            document.getElementById('crm-modal').classList.remove('flex');
+            document.getElementById('crm-modal').classList.add('hidden');
+        }
+
+        function agregarInteraccion() {
+            const input = document.getElementById('nueva-interaccion-input');
+            const texto = input.value.trim();
+            if (!texto) return;
+
+            const fechaStr = new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            modalHistorialTemp.unshift({ fecha: fechaStr, texto: texto });
+            input.value = '';
+            renderizarHistorialModal();
+        }
+
+        function renderizarHistorialModal() {
+            const contenedor = document.getElementById('modal-historial-lista');
+            contenedor.innerHTML = '';
+
+            if (modalHistorialTemp.length === 0) {
+                contenedor.innerHTML = `<p class="text-xs text-slate-400 italic py-2">Sin interacciones registradas aún.</p>`;
+                return;
+            }
+
+            modalHistorialTemp.forEach((item, index) => {
+                contenedor.innerHTML += `
+                    <div class="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700/60 text-xs flex justify-between items-start gap-3">
+                        <div>
+                            <span class="font-bold text-blue-600 dark:text-blue-400 block mb-0.5">${item.fecha}</span>
+                            <p class="text-slate-700 dark:text-slate-200">${item.texto}</p>
+                        </div>
+                        <button onclick="eliminarInteraccionModal(${index})" class="text-slate-400 hover:text-rose-500 transition"><i class="fa-solid fa-trash-can"></i></button>
+                    </div>
+                `;
+            });
+        }
+
+        function eliminarInteraccionModal(index) {
+            modalHistorialTemp.splice(index, 1);
+            renderizarHistorialModal();
+        }
+
+        function guardarEnCRM() {
+            const id = document.getElementById('modal-id').value;
+            const nombre = document.getElementById('modal-nombre').value.trim();
+            const telefono = document.getElementById('modal-telefono').value.trim();
+            const direccion = document.getElementById('modal-direccion').value.trim();
+            const estado = document.getElementById('modal-estado').value;
+            const rubroInput = document.getElementById('modal-rubro');
+            const rubro = rubroInput ? rubroInput.value.trim() || 'General / Sin Clasificar' : 'General / Sin Clasificar';
+
+            if (!nombre) {
+                mostrarNotificacion("El nombre del negocio es obligatorio.", "error");
+                return;
+            }
+
+            let leadExistente = carteraDb.find(c => c.id === id);
+            let lat = leadExistente ? leadExistente.lat : null;
+            let lng = leadExistente ? leadExistente.lng : null;
+
+            carteraDb = carteraDb.filter(c => c.id !== id);
+            carteraDb.unshift({
+                id,
+                nombre,
+                telefono,
+                direccion,
+                rubro,
+                estado,
+                lat,
+                lng,
+                historial: modalHistorialTemp
+            });
+
+            localStorage.setItem('crm_b2b_cartera_v2', JSON.stringify(carteraDb));
+            cerrarModal();
+            renderizarCartera();
+            renderizarRubros();
+            actualizarContadorSidebar();
+            mostrarNotificacion("Lead guardado exitosamente en el CRM.", "success");
+        }
+
+        function renderizarRubros() {
+            const container = document.getElementById('rubros-container');
+            const filtro = document.getElementById('filtro-rubros').value.toLowerCase();
+            container.innerHTML = '';
+
+            if (carteraDb.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-20 text-slate-400 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                        <div class="w-16 h-16 rounded-2xl bg-violet-50 dark:bg-violet-950/50 flex items-center justify-center mx-auto mb-4 text-2xl text-violet-500 shadow-inner">
+                            <i class="fa-solid fa-layer-group"></i>
+                        </div>
+                        <h4 class="font-extrabold text-slate-800 dark:text-slate-100 text-base mb-1">No hay clientes en la cartera</h4>
+                        <p class="text-xs text-slate-400 max-w-sm mx-auto">Agrega prospectos desde el Buscador API o el botón manual para ordenarlos automáticamente por rubro.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Agrupar por rubro
+            let rubrosMap = {};
+            carteraDb.forEach(c => {
+                let rubroKey = c.rubro ? c.rubro.trim() : 'General / Sin Clasificar';
+                if (!rubrosMap[rubroKey]) {
+                    rubrosMap[rubroKey] = [];
+                }
+                rubrosMap[rubroKey].push(c);
+            });
+
+            let rubrosKeys = Object.keys(rubrosMap).sort();
+            let matchedCount = 0;
+
+            rubrosKeys.forEach((rubro, index) => {
+                let clientes = rubrosMap[rubro];
+                if (filtro) {
+                    clientes = clientes.filter(c => c.nombre.toLowerCase().includes(filtro) || rubro.toLowerCase().includes(filtro));
+                }
+
+                if (clientes.length === 0) return;
+                matchedCount++;
+
+                const iconColors = [
+                    { bg: 'from-blue-600 to-indigo-600', shadow: 'shadow-blue-500/20' },
+                    { bg: 'from-violet-600 to-purple-600', shadow: 'shadow-violet-500/20' },
+                    { bg: 'from-emerald-600 to-teal-600', shadow: 'shadow-emerald-500/20' },
+                    { bg: 'from-amber-500 to-orange-600', shadow: 'shadow-amber-500/20' }
+                ];
+                const theme = iconColors[index % iconColors.length];
+                const safeRubroId = 'rubro_acc_' + index;
+
+                let tarjetasHtml = '';
+                clientes.forEach(c => {
+                    const ultimaNota = c.historial && c.historial.length > 0 ? c.historial[0].texto : 'Sin notas de interacción';
+                    const estadoConfig = c.estado === 'Nuevo' ? { bg: 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border-blue-200/80 dark:border-blue-900/60', icon: 'fa-certificate' } :
+                                         c.estado === 'Contactado' ? { bg: 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border-amber-200/80 dark:border-amber-900/60', icon: 'fa-headset' } :
+                                         c.estado === 'Negociacion' ? { bg: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border-indigo-200/80 dark:border-indigo-900/60', icon: 'fa-handshake' } :
+                                         { bg: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border-emerald-200/80 dark:border-emerald-900/60', icon: 'fa-circle-check' };
+
+                    let cleanPhone = (c.telefono || '').replace(/[^0-9+]/g, '');
+                    let whatsappBtn = cleanPhone ? `<a href="https://wa.me/${cleanPhone.replace('+', '')}?text=${encodeURIComponent('Hola ' + c.nombre + ', te contactamos desde B2B Pro Suite.')}" target="_blank" class="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/80 hover:bg-emerald-100 transition text-[11px] font-bold flex items-center gap-1" title="Enviar WhatsApp"><i class="fa-brands fa-whatsapp text-emerald-500"></i> WhatsApp</a>` : '';
+
+                    tarjetasHtml += `
+                        <div class="group bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between space-y-4 relative hover:-translate-y-1 ring-1 ring-slate-900/5">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr ${theme.bg} text-white flex items-center justify-center font-bold text-xs shadow-md ${theme.shadow} shrink-0">
+                                        <i class="fa-solid fa-store"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="font-bold text-xs text-slate-900 dark:text-white leading-snug group-hover:text-violet-600 dark:group-hover:text-violet-400 transition">${c.nombre}</h4>
+                                        <span class="inline-flex items-center gap-1 mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${estadoConfig.bg}">
+                                            <i class="fa-solid ${estadoConfig.icon}"></i> ${c.estado}
+                                        </span>
+                                    </div>
+                                </div>
+                                <button onclick='abrirModalManual("${c.id}")' class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-violet-600 dark:hover:text-violet-400 flex items-center justify-center transition shadow-sm" title="Editar Lead">
+                                    <i class="fa-solid fa-pen-to-square text-xs"></i>
+                                </button>
+                            </div>
+
+                            <div class="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
+                                <p class="flex items-center gap-2 px-1">
+                                    <i class="fa-solid fa-phone text-slate-400 shrink-0 text-[11px]"></i>
+                                    <span class="font-semibold text-slate-800 dark:text-slate-200">${c.telefono || 'Teléfono no disponible'}</span>
+                                </p>
+                                <p class="flex items-start gap-2 bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                                    <i class="fa-solid fa-location-dot text-violet-500 mt-0.5 shrink-0 text-[11px]"></i>
+                                    <span class="line-clamp-2 leading-tight font-medium text-[11px]">${c.direccion || 'Dirección no especificada'}</span>
+                                </p>
+                            </div>
+
+                            <div class="pt-3 border-t border-slate-100 dark:border-slate-800/80 space-y-2.5">
+                                <div class="p-2.5 bg-slate-50/80 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 text-xs">
+                                    <span class="font-bold text-[9px] uppercase tracking-wider text-slate-400 block mb-0.5">Última Nota / Interacción:</span>
+                                    <p class="text-slate-700 dark:text-slate-300 truncate font-medium">${ultimaNota}</p>
+                                </div>
+                                ${whatsappBtn ? `<div class="flex justify-end">${whatsappBtn}</div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML += `
+                    <div class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-xl overflow-hidden ring-1 ring-slate-900/5">
+                        <div onclick="toggleRubroAccordion('${safeRubroId}', this)" class="px-7 py-5 bg-gradient-to-r from-slate-50 via-violet-50/30 to-slate-50 dark:from-slate-900 dark:via-slate-800/50 dark:to-slate-900 border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between cursor-pointer hover:bg-slate-100/60 dark:hover:bg-slate-800/80 transition select-none">
+                            <div class="flex items-center gap-3.5">
+                                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr ${theme.bg} text-white flex items-center justify-center font-bold text-sm shadow-md ${theme.shadow}">
+                                    <i class="fa-solid fa-layer-group"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-extrabold text-sm text-slate-900 dark:text-white tracking-tight">${rubro}</h3>
+                                    <p class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Clic para desplegar prospectos</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="px-3.5 py-1 rounded-full bg-violet-100 dark:bg-violet-950/80 text-violet-700 dark:text-violet-300 text-xs font-black shadow-sm border border-violet-200 dark:border-violet-900/50">${clientes.length} prospectos</span>
+                                <i id="icon_${safeRubroId}" class="fa-solid fa-chevron-down text-slate-400 transition-transform duration-300 text-xs"></i>
+                            </div>
+                        </div>
+                        <div id="${safeRubroId}" class="p-6 bg-slate-50/50 dark:bg-slate-950/30 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 hidden">
+                            ${tarjetasHtml}
+                        </div>
+                    </div>
+                `;
+            });
+
+            if (matchedCount === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-20 text-slate-400 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                        <i class="fa-solid fa-filter-circle-xmark text-3xl mb-3 block text-amber-500"></i>
+                        <h4 class="font-extrabold text-slate-800 dark:text-slate-100 text-base mb-1">Sin coincidencias</h4>
+                        <p class="text-xs text-slate-400">No se encontraron clientes para el término de búsqueda ingresado.</p>
+                    </div>
+                `;
+            }
+        }
+
+        function toggleRubroAccordion(contentId, headerEl) {
+            const contentDiv = document.getElementById(contentId);
+            const iconEl = document.getElementById('icon_' + contentId);
+            
+            if (contentDiv.classList.contains('hidden')) {
+                contentDiv.classList.remove('hidden');
+                contentDiv.classList.add('grid');
+                if(iconEl) iconEl.style.transform = 'rotate(180deg)';
+            } else {
+                contentDiv.classList.add('hidden');
+                contentDiv.classList.remove('grid');
+                if(iconEl) iconEl.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        function setCarteraMode(mode) {
+            carteraMode = mode;
+            const btnKanban = document.getElementById('btn-mode-kanban');
+            const btnTable = document.getElementById('btn-mode-table');
+            const kanbanContainer = document.getElementById('cartera-kanban-container');
+            const tableContainer = document.getElementById('cartera-table-container');
+            const batchActions = document.getElementById('table-batch-actions');
+
+            if (mode === 'kanban') {
+                btnKanban.className = "px-4 py-2 rounded-lg text-xs font-bold transition bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm";
+                btnTable.className = "px-4 py-2 rounded-lg text-xs font-bold transition text-slate-500 hover:text-slate-900 dark:hover:text-white";
+                kanbanContainer.classList.remove('hidden');
+                kanbanContainer.classList.add('grid');
+                tableContainer.classList.add('hidden');
+                tableContainer.classList.remove('flex');
+                if(batchActions) batchActions.classList.add('hidden');
+                if(batchActions) batchActions.classList.remove('flex');
+            } else {
+                btnTable.className = "px-4 py-2 rounded-lg text-xs font-bold transition bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm";
+                btnKanban.className = "px-4 py-2 rounded-lg text-xs font-bold transition text-slate-500 hover:text-slate-900 dark:hover:text-white";
+                tableContainer.classList.remove('hidden');
+                tableContainer.classList.add('flex');
+                kanbanContainer.classList.add('hidden');
+                kanbanContainer.classList.remove('grid');
+                if(batchActions) batchActions.classList.remove('hidden');
+                if(batchActions) batchActions.classList.add('flex');
+            }
+            renderizarCartera();
+        }
+
+        function renderizarCartera() {
+            const filtro = document.getElementById('filtro-cartera').value.toLowerCase();
+            const filtrados = carteraDb.filter(c => c.nombre.toLowerCase().includes(filtro) || c.estado.toLowerCase().includes(filtro) || (c.telefono && c.telefono.toLowerCase().includes(filtro)));
+
+            if (carteraMode === 'kanban') {
+                const kanbanContainer = document.getElementById('cartera-kanban-container');
+                kanbanContainer.innerHTML = '';
+
+                const columnas = [
+                    { id: 'Nuevo', title: 'Nuevo Lead', color: 'border-blue-500', bg: 'bg-blue-50/50 dark:bg-blue-950/20' },
+                    { id: 'Contactado', title: 'Contactado', color: 'border-amber-500', bg: 'bg-amber-50/50 dark:bg-amber-950/20' },
+                    { id: 'Negociacion', title: 'En Negociación', color: 'border-indigo-500', bg: 'bg-indigo-50/50 dark:bg-indigo-950/20' },
+                    { id: 'Cerrado', title: 'Cerrado / Cliente', color: 'border-emerald-500', bg: 'bg-emerald-50/50 dark:bg-emerald-950/20' }
+                ];
+
+                columnas.forEach(col => {
+                    const leadsCol = filtrados.filter(l => l.estado === col.id);
+                    let cardsHtml = '';
+
+                    leadsCol.forEach(lead => {
+                        const ultimaNota = lead.historial && lead.historial.length > 0 ? lead.historial[0].texto : 'Sin interacciones';
+                        cardsHtml += `
+                            <div class="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition space-y-3">
+                                <div class="flex justify-between items-start gap-2">
+                                    <h4 class="font-bold text-sm text-slate-800 dark:text-white leading-tight">${lead.nombre}</h4>
+                                    <button onclick='abrirModalManual("${lead.id}")' class="text-slate-400 hover:text-blue-500 transition"><i class="fa-solid fa-pen-to-square text-xs"></i></button>
+                                </div>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5"><i class="fa-solid fa-phone text-slate-400"></i> ${lead.telefono || 'Sin teléfono'}</p>
+                                <div class="p-2.5 bg-slate-50 dark:bg-slate-800/80 rounded-lg text-xs text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/50">
+                                    <span class="font-semibold text-[10px] uppercase text-slate-400 block mb-0.5">Último Avance:</span>
+                                    <p class="truncate">${ultimaNota}</p>
+                                </div>
+                                <div class="flex justify-between items-center pt-1 border-t border-slate-100 dark:border-slate-800">
+                                    <button onclick="cambiarEstadoRapido('${lead.id}', -1)" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-xs"><i class="fa-solid fa-chevron-left"></i></button>
+                                    <span class="text-[10px] font-semibold text-slate-400">${lead.historial ? lead.historial.length : 0} notas</span>
+                                    <button onclick="cambiarEstadoRapido('${lead.id}', 1)" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-xs"><i class="fa-solid fa-chevron-right"></i></button>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    kanbanContainer.innerHTML += `
+                        <div class="flex flex-col rounded-2xl border border-slate-200 dark:border-slate-800 ${col.bg} p-4 min-h-[500px]">
+                            <div class="flex justify-between items-center mb-4 pb-2 border-b-2 ${col.color}">
+                                <h3 class="font-bold text-sm text-slate-800 dark:text-white">${col.title}</h3>
+                                <span class="px-2 py-0.5 rounded-full bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold shadow-sm">${leadsCol.length}</span>
+                            </div>
+                            <div class="flex-1 space-y-3 overflow-y-auto">
+                                ${cardsHtml || '<div class="text-center py-12 text-slate-400 text-xs italic">Sin prospectos</div>'}
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                const tbody = document.getElementById('cartera-table-body');
+                tbody.innerHTML = '';
+
+                if (filtrados.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-16 text-slate-400">Sin prospectos en la cartera.</td></tr>`;
+                    return;
+                }
+
+                filtrados.forEach(c => {
+                    const isChecked = selectedCarteraTableIds.has(c.id) ? 'checked' : '';
+                    const ultimaNota = c.historial && c.historial.length > 0 ? c.historial[0].texto : 'Sin notas';
+
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+                            <td class="py-4 px-4 text-center">
+                                <input type="checkbox" value="${c.id}" ${isChecked} onchange="toggleSelectCarteraRow('${c.id}', this)" class="cartera-row-checkbox w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer">
+                            </td>
+                            <td class="py-4 px-6 font-semibold text-slate-800 dark:text-white">${c.nombre}</td>
+                            <td class="py-4 px-6 text-slate-500 dark:text-slate-400">${c.telefono || 'Sin teléfono'}</td>
+                            <td class="py-4 px-6">
+                                <select onchange="cambiarEstadoInline('${c.id}', this.value)" class="px-3 py-1.5 rounded-xl text-xs font-bold border outline-none cursor-pointer transition shadow-sm ${
+                                    c.estado === 'Nuevo' ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/50 dark:text-blue-400 dark:border-blue-900' :
+                                    c.estado === 'Contactado' ? 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-900' :
+                                    c.estado === 'Negociacion' ? 'bg-indigo-50 text-indigo-600 border-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-400 dark:border-indigo-900' :
+                                    'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-900'
+                                }">
+                                    <option value="Nuevo" ${c.estado === 'Nuevo' ? 'selected' : ''}>Nuevo Lead</option>
+                                    <option value="Contactado" ${c.estado === 'Contactado' ? 'selected' : ''}>Contactado</option>
+                                    <option value="Negociacion" ${c.estado === 'Negociacion' ? 'selected' : ''}>En Negociación</option>
+                                    <option value="Cerrado" ${c.estado === 'Cerrado' ? 'selected' : ''}>Cerrado / Cliente</option>
+                                </select>
+                            </td>
+                            <td class="py-4 px-6 text-slate-600 dark:text-slate-300 text-xs truncate max-w-xs">${ultimaNota}</td>
+                            <td class="py-4 px-6 text-center space-x-2">
+                                <button onclick='abrirModalManual("${c.id}")' class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition shadow-sm">Editar</button>
+                                <button onclick="eliminarCartera('${c.id}')" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold transition shadow-sm">Eliminar</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+        }
+
+        function toggleSelectCarteraRow(id, checkbox) {
+            if (checkbox.checked) {
+                selectedCarteraTableIds.add(id);
+            } else {
+                selectedCarteraTableIds.delete(id);
+            }
+            document.getElementById('table-selected-count').innerText = selectedCarteraTableIds.size;
+        }
+
+        function toggleSelectAllCarteraTable(masterCheckbox) {
+            const checkboxes = document.querySelectorAll('.cartera-row-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = masterCheckbox.checked;
+                const id = cb.value;
+                if (masterCheckbox.checked) {
+                    selectedCarteraTableIds.add(id);
+                } else {
+                    selectedCarteraTableIds.delete(id);
+                }
+            });
+            document.getElementById('table-selected-count').innerText = selectedCarteraTableIds.size;
+        }
+
+        function eliminarSeleccionadosCartera() {
+            if (selectedCarteraTableIds.size === 0) {
+                mostrarNotificacion("Selecciona al menos un prospecto para eliminar.", "error");
+                return;
+            }
+            carteraDb = carteraDb.filter(c => !selectedCarteraTableIds.has(c.id));
+            selectedCarteraTableIds.clear();
+            document.getElementById('table-selected-count').innerText = '0';
+            document.getElementById('select-all-cartera-table').checked = false;
+            localStorage.setItem('crm_b2b_cartera_v2', JSON.stringify(carteraDb));
+            renderizarCartera();
+            actualizarContadorSidebar();
+            mostrarNotificacion("Prospectos seleccionados eliminados con éxito.", "success");
+        }
+
+        function cambiarEstadoInline(id, nuevoEstado) {
+            let lead = carteraDb.find(c => c.id === id);
+            if (!lead) return;
+
+            lead.estado = nuevoEstado;
+            if (!lead.historial) lead.historial = [];
+            lead.historial.unshift({ fecha: new Date().toLocaleDateString(), texto: `Estado cambiado a ${nuevoEstado} desde tabla` });
+            localStorage.setItem('crm_b2b_cartera_v2', JSON.stringify(carteraDb));
+            renderizarCartera();
+            actualizarContadorSidebar();
+            mostrarNotificacion(`Estado actualizado a ${nuevoEstado}.`, "success");
+        }
+
+        function cambiarEstadoRapido(id, direccion) {
+            const estados = ['Nuevo', 'Contactado', 'Negociacion', 'Cerrado'];
+            let lead = carteraDb.find(c => c.id === id);
+            if (!lead) return;
+
+            let currentIndex = estados.indexOf(lead.estado);
+            let newIndex = currentIndex + direccion;
+
+            if (newIndex >= 0 && newIndex < estados.length) {
+                lead.estado = estados[newIndex];
+                if (!lead.historial) lead.historial = [];
+                lead.historial.unshift({ fecha: new Date().toLocaleDateString(), texto: `Estado cambiado a ${lead.estado}` });
+                localStorage.setItem('crm_b2b_cartera_v2', JSON.stringify(carteraDb));
+                renderizarCartera();
+                actualizarContadorSidebar();
+            }
+        }
+
+        function eliminarCartera(id) {
+            carteraDb = carteraDb.filter(c => c.id !== id);
+            localStorage.setItem('crm_b2b_cartera_v2', JSON.stringify(carteraDb));
+            renderizarCartera();
+            actualizarContadorSidebar();
+            mostrarNotificacion("Lead eliminado de la cartera.", "success");
+        }
+
+        function actualizarDashboard() {
+            document.getElementById('stat-total').innerText = carteraDb.length;
+            document.getElementById('stat-contactados').innerText = carteraDb.filter(c => c.estado === 'Contactado').length;
+            document.getElementById('stat-negociacion').innerText = carteraDb.filter(c => c.estado === 'Negociacion').length;
+            document.getElementById('stat-cerrados').innerText = carteraDb.filter(c => c.estado === 'Cerrado').length;
+
+            const activityList = document.getElementById('dashboard-activity-list');
+            activityList.innerHTML = '';
+
+            let allActivities = [];
+            carteraDb.forEach(c => {
+                if (c.historial) {
+                    c.historial.forEach(h => {
+                        allActivities.push({ nombre: c.nombre, fecha: h.fecha, texto: h.texto });
+                    });
+                }
+            });
+
+            if (allActivities.length === 0) {
+                activityList.innerHTML = `<p class="text-sm text-slate-400 italic py-4">No hay interacciones recientes registradas.</p>`;
+                return;
+            }
+
+            allActivities.slice(0, 6).forEach(act => {
+                activityList.innerHTML += `
+                    <div class="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700/60 flex items-center justify-between text-xs">
+                        <div>
+                            <span class="font-bold text-slate-800 dark:text-white">${act.nombre}</span>
+                            <p class="text-slate-500 dark:text-slate-400 mt-0.5">${act.texto}</p>
+                        </div>
+                        <span class="text-blue-500 font-medium whitespace-nowrap ml-4">${act.fecha}</span>
+                    </div>
+                `;
+            });
+        }
+
+        function exportarCSV() {
+            if (carteraDb.length === 0) {
+                mostrarNotificacion("No hay datos en la cartera para exportar.", "error");
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,Nombre,Telefono,Direccion,Estado\n";
+            carteraDb.forEach(c => {
+                csvContent += `"${c.nombre}","${c.telefono || ''}","${c.direccion || ''}","${c.estado}"\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "cartera_prospectos_crm.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            mostrarNotificacion("Archivo CSV exportado con éxito.", "success");
+        }
+
+        function mostrarNotificacion(mensaje, tipo = 'success') {
+            const div = document.createElement('div');
+            div.className = `fixed bottom-6 right-6 z-50 px-5 py-3 rounded-xl text-sm font-semibold text-white shadow-xl animate-fade ${tipo === 'success' ? 'bg-emerald-600' : 'bg-rose-600'}`;
+            div.innerHTML = `<i class="fa-solid ${tipo === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation'} mr-2"></i> ${mensaje}`;
+            document.body.appendChild(div);
+            setTimeout(() => div.remove(), 3500);
+        }
+
+        actualizarContadorSidebar();
     </script>
 </body>
 </html>
