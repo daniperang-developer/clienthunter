@@ -32,6 +32,30 @@
 </head>
 <body class="h-full bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex overflow-hidden font-sans transition-colors duration-200">
 
+    <!-- Modal para Configurar API Key de Google Places -->
+    <div id="apikey-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden items-center justify-center p-4 animate-fade">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col p-6 text-center">
+            <div class="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto mb-4 text-2xl shadow-inner border border-blue-100 dark:border-blue-900/50">
+                <i class="fa-solid fa-key"></i>
+            </div>
+            <h3 class="font-black text-lg text-slate-900 dark:text-white tracking-tight">Configurar Google Places API Key</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1.5 leading-relaxed">Para proteger tus credenciales y evitar exponerlas en el código fuente, ingresa tu API Key de Google Places (New API). Por defecto no se guarda: vive solo en la memoria de esta pestaña. Si marcas la casilla de abajo, se recordará en este navegador.</p>
+            
+            <div class="mt-6 text-left">
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Google API Key</label>
+                <input type="password" autocomplete="off" id="input-api-key-prompt" placeholder="AIzaSy..." class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm font-semibold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <label class="mt-4 flex items-start gap-2 text-left text-xs text-slate-500 cursor-pointer"><input type="checkbox" id="recordar-apikey" class="mt-0.5"><span>Recordar en este navegador. Úsalo solo en tu propio equipo: cualquiera que use este navegador podría ver la clave.</span></label>
+            <div class="mt-6 flex gap-3">
+                <button onclick="guardarApiKeyPrompt()" class="flex-1 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl text-xs font-bold transition shadow-lg shadow-blue-600/25">
+                    Guardar y Continuar 🚀
+                </button>
+            </div>
+            <p class="text-[10px] text-slate-400 mt-4">Puedes cambiar tu API Key en cualquier momento desde el menú superior.</p>
+        </div>
+    </div>
+
     <!-- Sidebar (Ancho optimizado más esbelto w-64 en lugar de w-72) -->
     <aside class="w-64 bg-slate-900 dark:bg-slate-900 border-r border-slate-800 flex flex-col z-20 shadow-xl select-none">
         <div class="p-5 border-b border-slate-800 flex items-center justify-between">
@@ -87,10 +111,15 @@
             </div>
             
             <div class="flex items-center gap-3">
+                <button onclick="abrirModalApiKey()" class="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition flex items-center gap-2 shadow-sm" title="Configurar API Key">
+                    <i class="fa-solid fa-key text-amber-500"></i> Configurar API Key
+                </button>
                 <button onclick="exportarCSV()" class="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition flex items-center gap-2 shadow-sm">
                     <i class="fa-solid fa-file-arrow-down text-blue-500"></i> Exportar CSV
                 </button>
-                <button onclick="toggleDarkMode()" class="w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-700 transition shadow-sm">
+                <button onclick="exportarRespaldo()" title="Respaldo JSON" class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"><i class="fa-solid fa-database text-violet-500"></i> Respaldo</button>
+<label title="Importar respaldo JSON" class="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"><i class="fa-solid fa-upload text-emerald-500"></i> Importar<input type="file" accept=".json" class="hidden" onchange="importarRespaldo(this)"></label>
+<button onclick="toggleDarkMode()" class="w-10 h-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-700 transition shadow-sm">
                     <i class="fa-solid fa-moon dark:hidden"></i>
                     <i class="fa-solid fa-sun hidden dark:inline text-amber-400"></i>
                 </button>
@@ -190,15 +219,12 @@
                                 </span>
                             </div>
                             <h3 class="text-2xl font-black tracking-tight">Buscador Inteligente de Leads B2B</h3>
-                            <p class="text-blue-100 text-xs mt-1">Ej: <span class="underline decoration-amber-400 font-medium">Clínicas dentales en Las Condes</span> o <span class="underline decoration-amber-400 font-medium">Cafeterías en Providencia</span></p>
+                            <p class="text-blue-100 text-xs mt-1">Escribe el rubro y la comuna o zona. Para varias comunas sepáralas con coma: <span class="underline decoration-amber-400 font-medium">Providencia, Ñuñoa, Las Condes</span></p>
                         </div>
                         
                         <div class="flex gap-3 w-full lg:w-auto max-w-2xl">
-                            <div class="relative flex-1 lg:w-96">
-                                <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-blue-200 text-sm"></i>
-                                <input type="text" id="query" placeholder="Rubro y ubicación (ej: Hoteles Santiago)..." class="w-full pl-11 pr-4 py-3.5 bg-white dark:bg-slate-900 border border-transparent rounded-2xl text-sm font-semibold focus:ring-4 focus:ring-white/30 outline-none text-slate-800 dark:text-white shadow-lg transition" onkeydown="if(event.key === 'Enter') ejecutarBusqueda(false)">
-                            </div>
-                            <button onclick="ejecutarBusqueda(false)" class="px-6 py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black rounded-2xl text-xs uppercase tracking-wider transition shadow-xl hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 shrink-0">
+                            <div class="flex flex-1 flex-col sm:flex-row gap-2 lg:w-[36rem]"><div class="relative flex-1"><i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-blue-200 text-sm"></i><input type="text" id="q-rubro" placeholder="Rubro (ej: Cafeterías)" class="w-full pl-11 pr-4 py-3.5 bg-white dark:bg-slate-900 border border-transparent rounded-2xl text-sm font-semibold focus:ring-4 focus:ring-white/30 outline-none text-slate-800 dark:text-white shadow-lg transition" oninput="sincronizarQuery()" onkeydown="if(event.key === 'Enter') iniciarBusqueda()"></div><div class="relative flex-1"><i class="fa-solid fa-location-dot absolute left-4 top-1/2 -translate-y-1/2 text-blue-200 text-sm"></i><input type="text" id="q-comuna" placeholder="Comuna o zona (varias: Providencia, Ñuñoa)" class="w-full pl-11 pr-4 py-3.5 bg-white dark:bg-slate-900 border border-transparent rounded-2xl text-sm font-semibold focus:ring-4 focus:ring-white/30 outline-none text-slate-800 dark:text-white shadow-lg transition" oninput="sincronizarQuery()" onkeydown="if(event.key === 'Enter') iniciarBusqueda()"></div><input type="hidden" id="query"></div>
+                            <button onclick="iniciarBusqueda()" class="px-6 py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black rounded-2xl text-xs uppercase tracking-wider transition shadow-xl hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 shrink-0">
                                 <i class="fa-solid fa-bolt text-slate-950 text-sm"></i> Buscar Leads
                             </button>
                         </div>
@@ -276,7 +302,7 @@
                     <div class="flex items-center gap-3">
                         <div class="relative">
                             <i class="fa-solid fa-filter absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                            <input type="text" id="filtro-cartera" placeholder="Filtrar prospectos..." oninput="renderizarCartera()" class="pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none w-64 text-slate-800 dark:text-white">
+                            <input type="text" id="filtro-cartera" placeholder="Filtrar prospectos..." oninput="renderCarteraDeb()" class="pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none w-64 text-slate-800 dark:text-white">
                         </div>
                         <button onclick="abrirModalNuevoManual()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl transition shadow-md flex items-center gap-2">
                             <i class="fa-solid fa-plus"></i> Nuevo Lead Manual
@@ -285,7 +311,7 @@
                 </div>
 
                 <!-- Contenedor Kanban Pipeline -->
-                <div id="cartera-kanban-container" class="flex-1 grid grid-cols-1 md:grid-cols-4 gap-6 overflow-x-auto pb-4">
+                <div id="cartera-kanban-container" class="flex-1 grid grid-cols-1 md:grid-cols-[repeat(5,minmax(280px,1fr))] gap-4 overflow-x-auto pb-4">
                     <!-- Columnas inyectadas por JS -->
                 </div>
 
@@ -337,7 +363,7 @@
                         <div class="w-full md:w-80">
                             <div class="relative">
                                 <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-violet-200 text-sm"></i>
-                                <input type="text" id="filtro-rubros" placeholder="Buscar rubro o negocio..." oninput="renderizarRubros()" class="w-full pl-11 pr-4 py-3.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl text-sm font-semibold text-white placeholder-violet-200 outline-none focus:ring-4 focus:ring-white/20 shadow-lg transition">
+                                <input type="text" id="filtro-rubros" placeholder="Buscar rubro o negocio..." oninput="renderRubrosDeb()" class="w-full pl-11 pr-4 py-3.5 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl text-sm font-semibold text-white placeholder-violet-200 outline-none focus:ring-4 focus:ring-white/20 shadow-lg transition">
                             </div>
                         </div>
                     </div>
@@ -378,14 +404,16 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Estado del Pipeline</label>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Persona de contacto</label><input type="text" id="modal-contacto" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white outline-none"></div><div><label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Email</label><input type="email" id="modal-email" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white outline-none"></div><div><label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Producto de interés</label><select id="modal-producto" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white outline-none"><option value="">—</option><option>cajas personalizadas</option><option>bolsas personalizadas</option><option>papel mantequilla personalizado</option><option>packaging general</option></select></div><div><label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Motivo de pérdida (si aplica)</label><input type="text" id="modal-motivo" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white outline-none"></div><div class="md:col-span-2"><label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Sitio web</label><div class="flex gap-2"><input type="text" id="modal-web" placeholder="https://..." oninput="actualizarLinkWeb()" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white outline-none"><a id="modal-web-link" target="_blank" rel="noopener" title="Abrir sitio" class="hidden shrink-0 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-bold text-blue-600 hover:bg-slate-50 dark:hover:bg-slate-800"><i class="fa-solid fa-arrow-up-right-from-square"></i></a></div></div><div><label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Próxima acción: fecha</label><input type="date" id="modal-prox-fecha" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white outline-none"></div><div><label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Próxima acción: qué hacer</label><input type="text" id="modal-prox-texto" placeholder="Ej: Llamar para cotizar cajas" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white outline-none"></div></div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div>
+<label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">Estado del Pipeline</label>
                         <select id="modal-estado" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
                             <option value="Nuevo">Nuevo Lead</option>
                             <option value="Contactado">Contactado / En Proceso</option>
                             <option value="Negociacion">En Negociación</option>
                             <option value="Cerrado">Cerrado / Cliente Ganado</option>
+<option value="Perdido">Perdido</option>
                         </select>
                     </div>
                     <div>
@@ -424,7 +452,8 @@
     <!-- Leaflet JS & App Script -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        const API_KEY = "AIzaSyAFD0G0_KmC1gxzlyH9-E37m5oUODJ7fcA";
+        let API_KEY = ""; // Por defecto solo en memoria; se recuerda únicamente si el usuario lo pide (casilla del modal)
+        try { localStorage.removeItem('crm_b2b_google_api_key'); API_KEY = localStorage.getItem('crm_b2b_gkey') || ""; } catch (e) {}
         let nextPageTokenGlobal = null;
         let carteraDb = JSON.parse(localStorage.getItem('crm_b2b_cartera_v2')) || [];
         let searchResultsCache = [];
@@ -433,10 +462,257 @@
         let carteraMode = 'kanban';
         let selectedSearchIds = new Set();
         let selectedCarteraTableIds = new Set();
+        let consultaOverride = null, consultasSesion = 0, modalExtra = {};
+        const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        const debounce = (fn, ms = 250) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+        const renderCarteraDeb = debounce(() => renderizarCartera());
+        const renderRubrosDeb = debounce(() => renderizarRubros());
+        function guardarCartera() { localStorage.setItem('crm_b2b_cartera_v2', JSON.stringify(carteraDb)); }
+        function parseQuery(q) {
+            const [rubro, resto] = String(q || '').trim().split(/\s+en\s+(.+)/i);
+            return { rubro: (rubro || '').trim(), comunas: (resto || '').split(/\s*(?:,|;|\sy\s)\s*/i).filter(Boolean) };
+        }
+        function rubroDe(q) { const el = document.getElementById('q-rubro'); const r = el ? el.value.trim() : parseQuery(q).rubro; return r ? r.charAt(0).toUpperCase() + r.slice(1) : 'General / Sin Clasificar'; }
+        function waNumero(tel) {
+            let d = String(tel || '').replace(/\D/g, '');
+            if (d.length === 9 && d[0] === '9') d = '56' + d;
+            return /^569\d{8}$/.test(d) ? d : '';
+        }
+        function waLink(tel, nombre) {
+            const n = waNumero(tel);
+            return n ? `https://wa.me/${n}?text=${encodeURIComponent('Hola ' + nombre + ', te contactamos desde B2B Pro Suite.')}` : '';
+        }
+        function descargarCSV(nombre, filas) {
+            const csv = '\ufeff' + filas.map(f => f.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
+            const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+            const a = document.createElement('a'); a.href = url; a.download = nombre;
+            document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+        function exportarRespaldo() {
+            const url = URL.createObjectURL(new Blob([JSON.stringify(carteraDb, null, 2)], { type: 'application/json' }));
+            const a = document.createElement('a'); a.href = url; a.download = `crm_respaldo_${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+        function importarRespaldo(input) {
+            const f = input.files[0]; if (!f) return;
+            const r = new FileReader();
+            r.onload = () => {
+                try {
+                    const arr = JSON.parse(r.result); if (!Array.isArray(arr)) throw new Error('formato');
+                    let n = 0;
+                    arr.forEach(l => { if (l && l.id && l.nombre && !carteraDb.some(c => c.id === l.id)) { carteraDb.push(l); n++; } });
+                    guardarCartera(); renderizarCartera(); renderizarRubros(); actualizarContadorSidebar();
+                    mostrarNotificacion(`Respaldo importado: ${n} leads nuevos.`);
+                } catch (e) { mostrarNotificacion('Archivo de respaldo inválido.', 'error'); }
+                input.value = '';
+            };
+            r.readAsText(f);
+        }
+        const FIRMA = 'Danilo'; // Se usa en la plantilla de WhatsApp: cámbiala si lo usa otra persona
+        let dragId = null;
+        const hoyISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+        const fechaCorta = f => f ? f.slice(5).split('-').reverse().join('/') : '';
+        const AFINES = /pasteler|panader|cafeter|caf[eé]|restaur|confiter|chocolat|helader|sushi|comida|delivery|florer|cosm[eé]tic|joyer|regalo|boutique|tienda|dulce|bomboner|vinoteca|artesan/i;
+        function scoreLead(l) {
+            let p = 0;
+            if (waNumero(l.telefono)) p += 30; else if (l.telefono) p += 10;
+            if (l.web) p += 20;
+            if (l.email || l.contacto) p += 15;
+            if (l.producto) p += 15;
+            if (AFINES.test((l.rubro || '') + ' ' + (l.nombre || ''))) p += 20;
+            return Math.min(p, 100);
+        }
+        function chipsLead(l) {
+            const sc = scoreLead(l), hoy = hoyISO();
+            const scCls = sc >= 70 ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : sc >= 40 ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-slate-100 text-slate-500 border-slate-200';
+            let h = `<span title="Puntaje de lead" class="px-2 py-0.5 rounded-md border text-[10px] font-bold ${scCls}"><i class="fa-solid fa-star"></i> ${sc}</span>`;
+            if (l.proxFecha) {
+                const c = l.proxFecha < hoy ? 'bg-rose-50 text-rose-600 border-rose-200' : l.proxFecha === hoy ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-slate-100 text-slate-500 border-slate-200';
+                h += `<span title="${esc(l.proxTexto)}" class="px-2 py-0.5 rounded-md border text-[10px] font-bold ${c}"><i class="fa-solid fa-calendar-day"></i> ${fechaCorta(l.proxFecha)}</span>`;
+            }
+            if (l.producto) h += `<span class="px-2 py-0.5 rounded-md border text-[10px] font-bold bg-slate-100 text-slate-500 border-slate-200">${esc(l.producto)}</span>`;
+            if (webHref(l.web)) h += `<a href="${esc(webHref(l.web))}" target="_blank" rel="noopener" title="Abrir sitio web" class="px-2 py-0.5 rounded-md border text-[10px] font-bold text-blue-600 border-blue-200 hover:bg-blue-50"><i class="fa-solid fa-globe"></i> Web</a>`;
+            if (waNumero(l.telefono)) h += `<button onclick="contactarWA('${l.id}')" title="Enviar plantilla por WhatsApp" class="px-2 py-0.5 rounded-md border text-[10px] font-bold text-emerald-600 border-emerald-200 hover:bg-emerald-50"><i class="fa-brands fa-whatsapp"></i> Escribir</button>`;
+            return `<div class="flex flex-wrap items-center gap-1.5">${h}</div>`;
+        }
+        function notaLead(l, texto) { (l.historial = l.historial || []).unshift({ ts: new Date().toISOString(), fecha: new Date().toLocaleDateString(), texto }); }
+        function refrescarTodo() { renderizarCartera(); actualizarDashboard(); actualizarContadorSidebar(); try { renderizarRubros(); } catch (e) {} }
+        function hostWeb(u) { const h = webHref(u); if (!h) return ''; try { return new URL(h).hostname.replace(/^www\./, ''); } catch (e) { return ''; } }
+        function filaKanban(icono, color, etiqueta, valorHtml) {
+            return `<div class="flex items-center gap-2 text-xs"><span class="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${color}"><i class="fa-solid ${icono} text-[10px]"></i></span><span class="w-[4.5rem] shrink-0 text-[10px] font-bold uppercase tracking-wide text-slate-400">${etiqueta}</span>${valorHtml ? `<span class="truncate font-semibold text-slate-700 dark:text-slate-200">${valorHtml}</span>` : '<span class="text-slate-300 dark:text-slate-600 italic">Sin dato</span>'}</div>`;
+        }
+        function tarjetaKanban(l, col) {
+            const hoy = hoyISO(), sc = scoreLead(l);
+            const scCls = sc >= 70 ? 'bg-emerald-100 text-emerald-700' : sc >= 40 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500';
+            const ultima = l.historial && l.historial[0] ? l.historial[0].texto : '';
+            const host = hostWeb(l.web);
+            const web = host ? `<a href="${esc(webHref(l.web))}" target="_blank" rel="noopener" class="text-blue-600 hover:underline">${esc(host)}</a>` : '';
+            const contacto = [l.contacto, l.email].filter(Boolean).map(esc).join(' · ');
+            let prox;
+            if (l.estado === 'Perdido') {
+                prox = `<div class="p-2 rounded-lg border text-xs bg-rose-50 border-rose-200 text-rose-700"><span class="font-bold text-[10px] uppercase block"><i class="fa-solid fa-circle-xmark"></i> Motivo de pérdida</span>${esc(l.motivoPerdida) || 'Sin motivo registrado'}</div>`;
+            } else if (l.proxFecha) {
+                const venc = l.proxFecha < hoy, esHoy = l.proxFecha === hoy;
+                const cls = venc ? 'bg-rose-50 border-rose-200 text-rose-700' : esHoy ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-sky-50 border-sky-200 text-sky-700';
+                prox = `<div class="p-2 rounded-lg border text-xs ${cls}"><span class="font-bold text-[10px] uppercase block"><i class="fa-solid fa-calendar-day"></i> ${venc ? 'Vencida' : esHoy ? 'Hoy' : 'Próxima acción'} · ${fechaCorta(l.proxFecha)}</span><span class="font-medium">${esc(l.proxTexto) || 'Hacer seguimiento'}</span></div>`;
+            } else {
+                prox = `<div class="p-2 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 text-[11px] text-slate-400 italic">Sin próxima acción definida</div>`;
+            }
+            const wa = waNumero(l.telefono) ? `<button onclick="contactarWA('${l.id}')" title="Enviar plantilla por WhatsApp" class="px-2.5 py-1 rounded-lg text-[11px] font-bold text-white bg-emerald-500 hover:bg-emerald-600"><i class="fa-brands fa-whatsapp"></i> Escribir</button>` : '';
+            return `
+                <div draggable="true" ondragstart="dragLead(event, '${l.id}')" class="relative overflow-hidden cursor-grab bg-white dark:bg-slate-900 pl-5 pr-4 py-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition space-y-3">
+                    <span class="absolute left-0 top-0 bottom-0 w-1.5 ${col.color.replace('border-', 'bg-')}"></span>
+                    <div class="flex justify-between items-start gap-2">
+                        <div class="min-w-0">
+                            <h4 class="font-bold text-sm text-slate-800 dark:text-white leading-tight">${esc(l.nombre)}</h4>
+                            <span class="inline-block mt-1 px-2 py-0.5 rounded-md bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-300 text-[10px] font-bold truncate max-w-full">${esc(l.rubro) || 'Sin rubro'}</span>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <span title="Puntaje de lead" class="px-1.5 py-0.5 rounded-md text-[10px] font-extrabold ${scCls}"><i class="fa-solid fa-star"></i> ${sc}</span>
+                            <button onclick='abrirModalManual("${l.id}")' title="Editar" class="text-slate-400 hover:text-blue-500 transition"><i class="fa-solid fa-pen-to-square text-xs"></i></button>
+                        </div>
+                    </div>
+                    <div class="space-y-1.5 p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60">
+                        ${filaKanban('fa-phone', 'bg-emerald-100 text-emerald-600', 'Teléfono', esc(l.telefono))}
+                        ${filaKanban('fa-globe', 'bg-blue-100 text-blue-600', 'Web', web)}
+                        ${filaKanban('fa-user', 'bg-amber-100 text-amber-600', 'Contacto', contacto)}
+                        ${filaKanban('fa-box', 'bg-violet-100 text-violet-600', 'Producto', esc(l.producto))}
+                    </div>
+                    ${prox}
+                    <div class="text-xs">
+                        <span class="font-bold text-[10px] uppercase tracking-wide text-slate-400 block mb-0.5">Último avance</span>
+                        <p class="truncate text-slate-600 dark:text-slate-300">${esc(ultima) || '<span class="italic text-slate-300">Sin interacciones</span>'}</p>
+                    </div>
+                    <div class="flex justify-between items-center pt-2 border-t border-slate-100 dark:border-slate-800">
+                        <button onclick="cambiarEstadoRapido('${l.id}', -1)" title="Etapa anterior" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-xs"><i class="fa-solid fa-chevron-left"></i></button>
+                        <div class="flex items-center gap-2"><span class="text-[10px] font-semibold text-slate-400">${l.historial ? l.historial.length : 0} notas</span>${wa}</div>
+                        <button onclick="cambiarEstadoRapido('${l.id}', 1)" title="Etapa siguiente" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-xs"><i class="fa-solid fa-chevron-right"></i></button>
+                    </div>
+                </div>`;
+        }
+        function webHref(u) {
+            u = String(u || '').trim(); if (!u) return '';
+            if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+            try { return new URL(u).href; } catch (e) { return ''; }
+        }
+        function actualizarLinkWeb() {
+            const a = document.getElementById('modal-web-link'), h = webHref(document.getElementById('modal-web').value);
+            if (h) { a.href = h; a.classList.remove('hidden'); } else { a.classList.add('hidden'); }
+        }
+        function cargarCamposCRM(l) {
+            const set = (id, v) => { document.getElementById(id).value = v || ''; };
+            set('modal-contacto', l.contacto); set('modal-email', l.email); set('modal-producto', l.producto);
+            set('modal-web', l.web || (modalExtra && modalExtra.web)); actualizarLinkWeb(); set('modal-prox-fecha', l.proxFecha); set('modal-prox-texto', l.proxTexto); set('modal-motivo', l.motivoPerdida);
+        }
+        function leerCamposCRM() {
+            const g = id => document.getElementById(id).value.trim();
+            return { web: g('modal-web'), contacto: g('modal-contacto'), email: g('modal-email'), producto: g('modal-producto'), proxFecha: g('modal-prox-fecha'), proxTexto: g('modal-prox-texto'), motivoPerdida: g('modal-motivo') };
+        }
+        function contactarWA(id) {
+            const l = carteraDb.find(c => c.id === id), n = l && waNumero(l.telefono);
+            if (!n) return;
+            const prod = l.producto || 'packaging personalizado (cajas, bolsas, papel mantequilla)';
+            const msg = `Hola${l.contacto ? ' ' + l.contacto : ''}, soy ${FIRMA}. Fabricamos ${prod} para negocios como ${l.nombre}. ¿Te puedo enviar nuestro catálogo y una cotización sin compromiso?`;
+            window.open(`https://wa.me/${n}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
+            notaLead(l, 'WhatsApp enviado (plantilla de primer contacto)');
+            if (l.estado === 'Nuevo') l.estado = 'Contactado';
+            if (!l.proxFecha) { const d = new Date(); d.setDate(d.getDate() + 3); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); l.proxFecha = d.toISOString().slice(0, 10); l.proxTexto = 'Seguimiento por WhatsApp'; }
+            guardarCartera(); refrescarTodo();
+        }
+        function dragLead(e, id) { dragId = id; e.dataTransfer.effectAllowed = 'move'; }
+        function soltarLead(e, estado) {
+            e.preventDefault();
+            const l = carteraDb.find(c => c.id === dragId); dragId = null;
+            if (!l || l.estado === estado) return;
+            let motivo = '';
+            if (estado === 'Perdido') {
+                motivo = prompt('Motivo de pérdida (precio, sin respuesta, ya tiene proveedor...):');
+                if (motivo === null) return;
+                l.motivoPerdida = motivo; l.proxFecha = ''; l.proxTexto = '';
+            }
+            l.estado = estado;
+            notaLead(l, `Estado cambiado a ${estado}${motivo ? ' · Motivo: ' + motivo : ''}`);
+            guardarCartera(); refrescarTodo();
+        }
+        function completarAccion(id) {
+            const l = carteraDb.find(c => c.id === id); if (!l) return;
+            notaLead(l, `Seguimiento realizado: ${l.proxTexto || 'sin detalle'}`);
+            l.proxFecha = ''; l.proxTexto = '';
+            guardarCartera(); refrescarTodo(); abrirModalManual(id);
+        }
+        function renderPanelHoy() {
+            const view = document.getElementById('view-dashboard'); if (!view) return;
+            let p = document.getElementById('panel-hoy');
+            if (!p) { p = document.createElement('div'); p.id = 'panel-hoy'; view.insertBefore(p, view.children[1] || null); }
+            const hoy = hoyISO();
+            const pend = carteraDb.filter(l => l.proxFecha && l.proxFecha <= hoy && l.estado !== 'Cerrado' && l.estado !== 'Perdido').sort((a, b) => a.proxFecha.localeCompare(b.proxFecha));
+            const filas = pend.map(l => `<div class="flex items-center justify-between gap-3 p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                <div class="min-w-0"><p class="font-bold text-sm text-slate-800 dark:text-white truncate">${esc(l.nombre)}</p>
+                <p class="text-xs text-slate-500 truncate"><span class="font-bold ${l.proxFecha < hoy ? 'text-rose-500' : 'text-amber-500'}">${l.proxFecha < hoy ? 'Vencido ' : 'Hoy '}${fechaCorta(l.proxFecha)}</span> · ${esc(l.proxTexto) || 'Hacer seguimiento'}</p></div>
+                <div class="flex gap-2 shrink-0">${waNumero(l.telefono) ? `<button onclick="contactarWA('${l.id}')" class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-emerald-600 border border-emerald-200 hover:bg-emerald-50"><i class="fa-brands fa-whatsapp"></i></button>` : ''}
+                <button onclick="abrirModalManual('${l.id}')" class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-600 border border-slate-200 hover:bg-slate-50">Abrir</button>
+                <button onclick="completarAccion('${l.id}')" class="px-2.5 py-1.5 rounded-lg text-xs font-bold text-white bg-blue-600 hover:bg-blue-700">Hecho</button></div></div>`).join('');
+            p.innerHTML = `<div class="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-3"><h3 class="font-bold text-sm text-slate-800 dark:text-white"><i class="fa-solid fa-calendar-check text-blue-500"></i> Seguimientos de hoy y vencidos (${pend.length})</h3>
+                ${filas || '<p class="text-xs text-slate-400">Sin seguimientos pendientes. Define una "Próxima acción" en tus leads para verlos aquí.</p>'}</div>`;
+        }
+        function sincronizarQuery() {
+            const r = document.getElementById('q-rubro').value.trim(), c = document.getElementById('q-comuna').value.trim();
+            document.getElementById('query').value = r ? (c ? `${r} en ${c}` : r) : '';
+        }
+        async function iniciarBusqueda() {
+            sincronizarQuery();
+            const rubroIn = document.getElementById('q-rubro').value.trim();
+            const comunasIn = document.getElementById('q-comuna').value.split(/\s*(?:,|;|\sy\s)\s*/i).filter(Boolean);
+            if (!rubroIn || !comunasIn.length) { mostrarNotificacion("Ingresa un rubro y una comuna o zona.", "error"); return; }
+            const rubro = rubroIn, comunas = comunasIn;
+            if (comunas.length < 2) { consultaOverride = null; return ejecutarBusqueda(false); }
+            if (comunas.length > 5 && !confirm(`Se harán ${comunas.length} consultas a Google Maps (cada una tiene costo). ¿Continuar?`)) return;
+            try {
+                for (let i = 0; i < comunas.length; i++) {
+                    consultaOverride = `${rubro} en ${comunas[i]}`;
+                    nextPageTokenGlobal = null;
+                    await ejecutarBusqueda(i > 0);
+                }
+            } finally {
+                consultaOverride = null; nextPageTokenGlobal = null;
+                const b = document.getElementById('btnCargarMas'); if (b) b.style.display = 'none';
+            }
+        }
 
         // Dark mode init
         if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
             document.documentElement.classList.add('dark');
+        }
+
+        // Verificar si existe API Key al cargar
+        window.addEventListener('DOMContentLoaded', () => {
+            if (!API_KEY) {
+                abrirModalApiKey();
+            }
+        });
+
+        function abrirModalApiKey() {
+            document.getElementById('input-api-key-prompt').value = API_KEY;
+            try { document.getElementById('recordar-apikey').checked = !!localStorage.getItem('crm_b2b_gkey'); } catch (e) {}
+            const modal = document.getElementById('apikey-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function guardarApiKeyPrompt() {
+            const val = document.getElementById('input-api-key-prompt').value.trim();
+            if (!val) {
+                mostrarNotificacion("Por favor ingresa una API Key válida.", "error");
+                return;
+            }
+            API_KEY = val;
+            const recordar = document.getElementById('recordar-apikey').checked;
+            try { if (recordar) localStorage.setItem('crm_b2b_gkey', val); else localStorage.removeItem('crm_b2b_gkey'); } catch (e) {}
+            
+            const modal = document.getElementById('apikey-modal');
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+            mostrarNotificacion(recordar ? "API Key guardada en este navegador." : "API Key lista para esta sesión (no se almacena).", "success");
         }
 
         function toggleDarkMode() {
@@ -488,9 +764,12 @@
         function initMap() {
             if (!map) {
                 map = L.map('map').setView([-33.4489, -70.6693], 13);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '&copy; OpenStreetMap contributors'
-                }).addTo(map);
+                const esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles &copy; Esri' });
+                const osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' });
+                let errTiles = 0;
+                esri.on('tileerror', () => { if (++errTiles === 5 && map.hasLayer(esri)) { map.removeLayer(esri); osm.addTo(map); } });
+                esri.addTo(map);
+                L.control.layers({ 'Calles (Esri)': esri, 'OpenStreetMap': osm }, null, { position: 'topright' }).addTo(map);
                 markersLayer = L.layerGroup().addTo(map);
             } else {
                 map.invalidateSize();
@@ -508,9 +787,9 @@
                 if (item.lat && item.lng) {
                     const marker = L.marker([item.lat, item.lng]).bindPopup(`
                         <div style="font-family: Inter, sans-serif; padding: 4px;">
-                            <strong style="font-size: 14px; color: #1e293b;">${item.nombre}</strong><br>
+                            <strong style="font-size: 14px; color: #1e293b;">${esc(item.nombre)}</strong><br>
                             <span style="font-size: 12px; color: #64748b;">Estado: <b>${item.estado}</b></span><br>
-                            <span style="font-size: 12px; color: #64748b;">${item.telefono || 'Sin teléfono'}</span>
+                            <span style="font-size: 12px; color: #64748b;">${esc(item.telefono) || 'Sin teléfono'}</span>
                         </div>
                     `);
                     markersLayer.addLayer(marker);
@@ -522,7 +801,7 @@
             if (count === 0 && searchResultsCache.length > 0) {
                 searchResultsCache.forEach(place => {
                     if (place.location) {
-                        const marker = L.marker([place.location.latitude, place.location.longitude]).bindPopup(`<b>${place.displayName ? place.displayName.text : 'Negocio'}</b>`);
+                        const marker = L.marker([place.location.latitude, place.location.longitude]).bindPopup(`<b>${esc(place.displayName ? place.displayName.text : 'Negocio')}</b>`);
                         markersLayer.addLayer(marker);
                         count++;
                     }
@@ -541,7 +820,12 @@
         }
 
         async function ejecutarBusqueda(esPaginacion = false) {
-            const queryText = document.getElementById('query').value.trim();
+            if (!API_KEY) {
+                abrirModalApiKey();
+                return;
+            }
+
+            const queryText = (consultaOverride ?? document.getElementById('query').value).trim();
             const statusBadge = document.getElementById('status-badge');
             const gridContainer = document.getElementById('resultados-grid');
             const btnMas = document.getElementById('btnCargarMas');
@@ -569,7 +853,7 @@
             }
             btnMas.style.display = 'none';
 
-            const payload = { textQuery: queryText || document.getElementById('query').value.trim(), languageCode: "es" };
+            const payload = { textQuery: queryText || document.getElementById('query').value.trim(), languageCode: "es", regionCode: "CL" };
             if (esPaginacion && nextPageTokenGlobal) {
                 payload.pageToken = nextPageTokenGlobal;
             }
@@ -585,12 +869,12 @@
                     headers: {
                         "Content-Type": "application/json",
                         "X-Goog-Api-Key": API_KEY,
-                        "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.websiteUri,places.location,nextPageToken"
+                        "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.internationalPhoneNumber,places.websiteUri,places.location,places.rating,places.userRatingCount,places.businessStatus,nextPageToken"
                     },
                     body: JSON.stringify(payload)
                 });
 
-                const data = await response.json();
+                const data = await response.json(); consultasSesion++;
                 if (data.error) {
                     statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-500"></span> Error API`;
                     mostrarNotificacion(`Error: ${data.error.message}`, "error");
@@ -611,16 +895,17 @@
                     return;
                 }
 
-                statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span> Resultados listos`;
-                if (!esPaginacion) gridContainer.innerHTML = '';
+                statusBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span> Resultados listos · ${consultasSesion} consulta(s) esta sesión`;
+                if (!esPaginacion || searchResultsCache.length === 0) gridContainer.innerHTML = '';
 
                 data.places.forEach(place => {
+                    if (searchResultsCache.some(p => p.id === place.id) || (place.businessStatus && place.businessStatus !== 'OPERATIONAL')) return;
                     searchResultsCache.push(place);
                     const id = place.id || Math.random().toString(36).substring(7);
                     const nombre = place.displayName ? place.displayName.text : 'Negocio Comercial';
                     const direccion = place.formattedAddress || 'Dirección no especificada';
                     const telefono = place.nationalPhoneNumber || '';
-                    const web = place.websiteUri ? `<a href="${place.websiteUri}" target="_blank" class="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-900/80 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition text-[11px] font-semibold flex items-center gap-1"><i class="fa-solid fa-globe"></i> Web</a>` : `<span class="text-slate-400 dark:text-slate-600 text-[11px] italic py-1 px-2">Sin web</span>`;
+                    const web = place.websiteUri ? `<a href="${esc(place.websiteUri)}" target="_blank" rel="noopener" class="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-900/80 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition text-[11px] font-semibold flex items-center gap-1"><i class="fa-solid fa-globe"></i> Web</a>` : `<span class="text-slate-400 dark:text-slate-600 text-[11px] italic py-1 px-2">Sin web</span>`;
 
                     const lat = place.location ? place.location.latitude : null;
                     const lng = place.location ? place.location.longitude : null;
@@ -629,15 +914,10 @@
                     const btnClass = enCartera ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/25' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-blue-600/25';
                     const btnText = enCartera ? '<i class="fa-solid fa-circle-check mr-1"></i> En Cartera' : '<i class="fa-solid fa-circle-plus mr-1"></i> Agregar al CRM';
 
-                    let cleanPhone = telefono.replace(/[^0-9+]/g, '');
-                    let whatsappBtn = '';
-                    if (cleanPhone) {
-                        whatsappBtn = `<a href="https://wa.me/${cleanPhone.replace('+', '')}?text=${encodeURIComponent('Hola ' + nombre + ', te contactamos desde B2B Pro Suite.')}" target="_blank" class="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/80 hover:bg-emerald-100 transition text-[11px] font-bold flex items-center gap-1" title="Enviar WhatsApp">
-                            <i class="fa-brands fa-whatsapp text-emerald-500"></i> WhatsApp
-                        </a>`;
-                    } else {
-                        whatsappBtn = `<span class="text-slate-400 dark:text-slate-600 text-[11px] italic px-2 py-1">Sin celular</span>`;
-                    }
+                    const wa = waLink(place.internationalPhoneNumber || telefono, nombre);
+                    let whatsappBtn = wa
+                        ? `<a href="${wa}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>`
+                        : `<span class="text-slate-400 dark:text-slate-600 text-[11px] italic px-2 py-1">Sin celular</span>`;
 
                     const isChecked = selectedSearchIds.has(id) ? 'checked' : '';
 
@@ -654,7 +934,7 @@
                                     <i class="fa-solid fa-store"></i>
                                 </div>
                                 <div>
-                                    <h4 class="font-bold text-xs text-slate-900 dark:text-white leading-snug group-hover:text-blue-600 dark:group-hover:text-blue-400 transition">${nombre}</h4>
+                                    <h4 class="font-bold text-xs text-slate-900 dark:text-white leading-snug group-hover:text-blue-600 dark:group-hover:text-blue-400 transition">${esc(nombre)}</h4>
                                     <span class="inline-block mt-0.5 px-2 py-0.2 rounded-full bg-slate-100 dark:bg-slate-800 text-[9px] font-bold uppercase tracking-wider text-slate-500">Lead Comercial</span>
                                 </div>
                             </div>
@@ -662,7 +942,7 @@
                             <div class="space-y-1.5 text-xs text-slate-600 dark:text-slate-300 pt-0.5">
                                 <p class="flex items-start gap-2 bg-slate-50 dark:bg-slate-800/40 p-2 rounded-xl border border-slate-100 dark:border-slate-800">
                                     <i class="fa-solid fa-location-dot text-blue-500 mt-0.5 shrink-0 text-[11px]"></i>
-                                    <span class="line-clamp-2 leading-tight font-medium text-[11px]">${direccion}</span>
+                                    <span class="line-clamp-2 leading-tight font-medium text-[11px]">${esc(direccion)}</span>
                                 </p>
                                 <p class="flex items-center gap-2 px-0.5">
                                     <i class="fa-solid fa-phone text-slate-400 shrink-0 text-[11px]"></i>
@@ -676,7 +956,7 @@
                                 ${whatsappBtn}
                                 ${web}
                             </div>
-                            <button onclick='abrirModalCRMFromSearch(${JSON.stringify({id, nombre, direccion, telefono, lat, lng})})' class="w-full py-2.5 rounded-xl text-[11px] font-extrabold transition shadow-md flex items-center justify-center gap-1.5 ${btnClass}">
+                            <button onclick="abrirModalCRMFromSearch('${esc(id)}')" class="w-full py-2.5 rounded-xl text-[11px] font-extrabold transition shadow-md flex items-center justify-center gap-1.5 ${btnClass}">
                                 ${btnText}
                             </button>
                         </div>
@@ -745,35 +1025,12 @@
         }
 
         function exportarSeleccionadosCSV() {
-            let itemsToExport = [];
-            if (selectedSearchIds.size > 0) {
-                itemsToExport = searchResultsCache.filter(p => selectedSearchIds.has(p.id));
-            } else {
-                itemsToExport = searchResultsCache; // Si no hay selección manual, exporta todos los cargados en la tabla
-            }
-
-            if (itemsToExport.length === 0) {
-                mostrarNotificacion("No hay resultados seleccionados o disponibles para exportar.", "error");
-                return;
-            }
-
-            let csvContent = "data:text/csv;charset=utf-8,Nombre,Direccion,Telefono,SitioWeb\n";
-            itemsToExport.forEach(p => {
-                const nombre = p.displayName ? p.displayName.text.replace(/"/g, '""') : '';
-                const direccion = (p.formattedAddress || '').replace(/"/g, '""');
-                const telefono = p.nationalPhoneNumber || '';
-                const web = p.websiteUri || '';
-                csvContent += `"${nombre}","${direccion}","${telefono}","${web}"\n`;
-            });
-
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "prospectos_busqueda_b2b.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            mostrarNotificacion(`Exportados ${itemsToExport.length} prospectos a CSV con éxito.`, "success");
+            if (selectedSearchIds.size === 0) { mostrarNotificacion("Selecciona al menos un resultado.", "error"); return; }
+            const filas = [['Nombre', 'Telefono', 'Direccion', 'Web', 'Rating', 'Resenas']];
+            searchResultsCache.filter(p => selectedSearchIds.has(p.id)).forEach(p => filas.push([
+                p.displayName ? p.displayName.text : '', p.internationalPhoneNumber || p.nationalPhoneNumber || '',
+                p.formattedAddress || '', p.websiteUri || '', p.rating || '', p.userRatingCount || '']));
+            descargarCSV('resultados_busqueda.csv', filas);
         }
 
         function agregarSeleccionadosAlCRM() {
@@ -795,19 +1052,18 @@
                         const lng = place.location ? place.location.longitude : null;
 
                         // Intentamos inferir el rubro a partir del texto de búsqueda actual si existe, o categoría genérica
-                        const queryVal = document.getElementById('query').value.trim();
-                        let rubroInferido = queryVal ? queryVal.charAt(0).toUpperCase() + queryVal.slice(1) : 'General / Sin Clasificar';
+                        let rubroInferido = rubroDe(document.getElementById('query').value);
 
                         carteraDb.unshift({
                             id: place.id,
                             nombre,
                             telefono,
                             direccion,
-                            rubro: rubroInferido,
+                            web: place.websiteUri || '', rubro: rubroInferido,
                             estado: 'Nuevo',
                             lat,
                             lng,
-                            historial: [{ fecha: new Date().toLocaleDateString(), texto: 'Lead importado masivamente desde Buscador API.' }]
+                            historial: [{ ts: new Date().toISOString(), fecha: new Date().toLocaleDateString(), texto: 'Lead importado masivamente desde Buscador API.' }]
                         });
                         agregadosCount++;
                     }
@@ -815,7 +1071,7 @@
             });
 
             if (agregadosCount > 0) {
-                localStorage.setItem('crm_b2b_cartera_v2', JSON.stringify(carteraDb));
+                guardarCartera();
                 actualizarContadorSidebar();
             }
 
@@ -841,10 +1097,13 @@
 
         let modalHistorialTemp = [];
 
-        function abrirModalCRMFromSearch(place) {
+        function abrirModalCRMFromSearch(placeId) {
+            const p = searchResultsCache.find(x => x.id === placeId) || {};
+            const place = { id: placeId, nombre: p.displayName ? p.displayName.text : 'Negocio Comercial', direccion: p.formattedAddress || '',
+                telefono: p.nationalPhoneNumber || '', web: p.websiteUri || '', lat: p.location ? p.location.latitude : null, lng: p.location ? p.location.longitude : null };
+            modalExtra = { web: place.web, lat: place.lat, lng: place.lng };
             const existente = carteraDb.find(c => c.id === place.id);
-            const queryVal = document.getElementById('query').value.trim();
-            const rubroDefault = queryVal ? queryVal.charAt(0).toUpperCase() + queryVal.slice(1) : 'General / Sin Clasificar';
+            const rubroDefault = rubroDe(document.getElementById('query').value);
 
             const lead = existente || {
                 id: place.id,
@@ -855,14 +1114,14 @@
                 estado: 'Nuevo',
                 lat: place.lat,
                 lng: place.lng,
-                historial: [{ fecha: new Date().toLocaleDateString(), texto: 'Lead importado desde Buscador API.' }]
+                historial: [{ ts: new Date().toISOString(), fecha: new Date().toLocaleDateString(), texto: 'Lead importado desde Buscador API.' }]
             };
 
             document.getElementById('modal-id').value = lead.id;
             document.getElementById('modal-nombre').value = lead.nombre;
             document.getElementById('modal-telefono').value = lead.telefono || '';
             document.getElementById('modal-direccion').value = lead.direccion || '';
-            document.getElementById('modal-estado').value = lead.estado;
+            document.getElementById('modal-estado').value = lead.estado; cargarCamposCRM(lead);
             
             // Aseguramos campo de rubro en el modal si no existe en HTML anterior lo inyectamos o creamos
             let rubroInput = document.getElementById('modal-rubro');
@@ -890,6 +1149,7 @@
         }
 
         function abrirModalManual(id = null) {
+            modalExtra = {};
             let lead = carteraDb.find(c => c.id === id) || {
                 id: 'manual_' + Date.now(),
                 nombre: '',
@@ -899,14 +1159,14 @@
                 estado: 'Nuevo',
                 lat: null,
                 lng: null,
-                historial: [{ fecha: new Date().toLocaleDateString(), texto: 'Lead creado manualmente en CRM.' }]
+                historial: [{ ts: new Date().toISOString(), fecha: new Date().toLocaleDateString(), texto: 'Lead creado manualmente en CRM.' }]
             };
 
             document.getElementById('modal-id').value = lead.id;
             document.getElementById('modal-nombre').value = lead.nombre;
             document.getElementById('modal-telefono').value = lead.telefono || '';
             document.getElementById('modal-direccion').value = lead.direccion || '';
-            document.getElementById('modal-estado').value = lead.estado;
+            document.getElementById('modal-estado').value = lead.estado; cargarCamposCRM(lead);
 
             let rubroInput = document.getElementById('modal-rubro');
             if (!rubroInput) {
@@ -946,7 +1206,7 @@
             if (!texto) return;
 
             const fechaStr = new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            modalHistorialTemp.unshift({ fecha: fechaStr, texto: texto });
+            modalHistorialTemp.unshift({ ts: new Date().toISOString(), fecha: fechaStr, texto: texto });
             input.value = '';
             renderizarHistorialModal();
         }
@@ -965,7 +1225,7 @@
                     <div class="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700/60 text-xs flex justify-between items-start gap-3">
                         <div>
                             <span class="font-bold text-blue-600 dark:text-blue-400 block mb-0.5">${item.fecha}</span>
-                            <p class="text-slate-700 dark:text-slate-200">${item.texto}</p>
+                            <p class="text-slate-700 dark:text-slate-200">${esc(item.texto)}</p>
                         </div>
                         <button onclick="eliminarInteraccionModal(${index})" class="text-slate-400 hover:text-rose-500 transition"><i class="fa-solid fa-trash-can"></i></button>
                     </div>
@@ -993,23 +1253,12 @@
             }
 
             let leadExistente = carteraDb.find(c => c.id === id);
-            let lat = leadExistente ? leadExistente.lat : null;
-            let lng = leadExistente ? leadExistente.lng : null;
+            const base = leadExistente || modalExtra;
+            const actualizado = { ...(leadExistente || {}), id, nombre, telefono, direccion, rubro, estado,
+                lat: base.lat ?? null, lng: base.lng ?? null, web: base.web || '', ...leerCamposCRM(), historial: modalHistorialTemp };
+            if (leadExistente) carteraDb[carteraDb.indexOf(leadExistente)] = actualizado; else carteraDb.unshift(actualizado);
 
-            carteraDb = carteraDb.filter(c => c.id !== id);
-            carteraDb.unshift({
-                id,
-                nombre,
-                telefono,
-                direccion,
-                rubro,
-                estado,
-                lat,
-                lng,
-                historial: modalHistorialTemp
-            });
-
-            localStorage.setItem('crm_b2b_cartera_v2', JSON.stringify(carteraDb));
+            guardarCartera();
             cerrarModal();
             renderizarCartera();
             renderizarRubros();
@@ -1072,10 +1321,11 @@
                     const estadoConfig = c.estado === 'Nuevo' ? { bg: 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border-blue-200/80 dark:border-blue-900/60', icon: 'fa-certificate' } :
                                          c.estado === 'Contactado' ? { bg: 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border-amber-200/80 dark:border-amber-900/60', icon: 'fa-headset' } :
                                          c.estado === 'Negociacion' ? { bg: 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border-indigo-200/80 dark:border-indigo-900/60', icon: 'fa-handshake' } :
+                                         c.estado === 'Perdido' ? { bg: 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border-rose-200/80 dark:border-rose-900/60', icon: 'fa-circle-xmark' } :
                                          { bg: 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border-emerald-200/80 dark:border-emerald-900/60', icon: 'fa-circle-check' };
 
-                    let cleanPhone = (c.telefono || '').replace(/[^0-9+]/g, '');
-                    let whatsappBtn = cleanPhone ? `<a href="https://wa.me/${cleanPhone.replace('+', '')}?text=${encodeURIComponent('Hola ' + c.nombre + ', te contactamos desde B2B Pro Suite.')}" target="_blank" class="px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/80 dark:border-emerald-800/80 hover:bg-emerald-100 transition text-[11px] font-bold flex items-center gap-1" title="Enviar WhatsApp"><i class="fa-brands fa-whatsapp text-emerald-500"></i> WhatsApp</a>` : '';
+                    const waRub = waLink(c.telefono, c.nombre);
+                let whatsappBtn = waRub ? `<a href="${waRub}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a>` : '';
 
                     tarjetasHtml += `
                         <div class="group bg-white dark:bg-slate-900/90 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between space-y-4 relative hover:-translate-y-1 ring-1 ring-slate-900/5">
@@ -1085,7 +1335,7 @@
                                         <i class="fa-solid fa-store"></i>
                                     </div>
                                     <div>
-                                        <h4 class="font-bold text-xs text-slate-900 dark:text-white leading-snug group-hover:text-violet-600 dark:group-hover:text-violet-400 transition">${c.nombre}</h4>
+                                        <h4 class="font-bold text-xs text-slate-900 dark:text-white leading-snug group-hover:text-violet-600 dark:group-hover:text-violet-400 transition">${esc(c.nombre)}</h4>
                                         <span class="inline-flex items-center gap-1 mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${estadoConfig.bg}">
                                             <i class="fa-solid ${estadoConfig.icon}"></i> ${c.estado}
                                         </span>
@@ -1099,18 +1349,19 @@
                             <div class="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
                                 <p class="flex items-center gap-2 px-1">
                                     <i class="fa-solid fa-phone text-slate-400 shrink-0 text-[11px]"></i>
-                                    <span class="font-semibold text-slate-800 dark:text-slate-200">${c.telefono || 'Teléfono no disponible'}</span>
+                                    <span class="font-semibold text-slate-800 dark:text-slate-200">${esc(c.telefono) || 'Teléfono no disponible'}</span>
                                 </p>
+                                ${hostWeb(c.web) ? `<p class="flex items-center gap-2 px-1"><i class="fa-solid fa-globe text-blue-500 shrink-0 text-[11px]"></i><a href="${esc(webHref(c.web))}" target="_blank" rel="noopener" class="font-semibold text-blue-600 dark:text-blue-400 hover:underline truncate">${esc(hostWeb(c.web))}</a></p>` : ''}
                                 <p class="flex items-start gap-2 bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
                                     <i class="fa-solid fa-location-dot text-violet-500 mt-0.5 shrink-0 text-[11px]"></i>
-                                    <span class="line-clamp-2 leading-tight font-medium text-[11px]">${c.direccion || 'Dirección no especificada'}</span>
+                                    <span class="line-clamp-2 leading-tight font-medium text-[11px]">${esc(c.direccion) || 'Dirección no especificada'}</span>
                                 </p>
                             </div>
 
                             <div class="pt-3 border-t border-slate-100 dark:border-slate-800/80 space-y-2.5">
                                 <div class="p-2.5 bg-slate-50/80 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 text-xs">
                                     <span class="font-bold text-[9px] uppercase tracking-wider text-slate-400 block mb-0.5">Última Nota / Interacción:</span>
-                                    <p class="text-slate-700 dark:text-slate-300 truncate font-medium">${ultimaNota}</p>
+                                    <p class="text-slate-700 dark:text-slate-300 truncate font-medium">${esc(ultimaNota)}</p>
                                 </div>
                                 ${whatsappBtn ? `<div class="flex justify-end">${whatsappBtn}</div>` : ''}
                             </div>
@@ -1126,7 +1377,7 @@
                                     <i class="fa-solid fa-layer-group"></i>
                                 </div>
                                 <div>
-                                    <h3 class="font-extrabold text-sm text-slate-900 dark:text-white tracking-tight">${rubro}</h3>
+                                    <h3 class="font-extrabold text-sm text-slate-900 dark:text-white tracking-tight">${esc(rubro)}</h3>
                                     <p class="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Clic para desplegar prospectos</p>
                                 </div>
                             </div>
@@ -1210,37 +1461,21 @@
                     { id: 'Nuevo', title: 'Nuevo Lead', color: 'border-blue-500', bg: 'bg-blue-50/50 dark:bg-blue-950/20' },
                     { id: 'Contactado', title: 'Contactado', color: 'border-amber-500', bg: 'bg-amber-50/50 dark:bg-amber-950/20' },
                     { id: 'Negociacion', title: 'En Negociación', color: 'border-indigo-500', bg: 'bg-indigo-50/50 dark:bg-indigo-950/20' },
-                    { id: 'Cerrado', title: 'Cerrado / Cliente', color: 'border-emerald-500', bg: 'bg-emerald-50/50 dark:bg-emerald-950/20' }
+                    { id: 'Cerrado', title: 'Cerrado / Cliente', color: 'border-emerald-500', bg: 'bg-emerald-50/50 dark:bg-emerald-950/20' },
+                    { id: 'Perdido', title: 'Perdido', color: 'border-rose-500', bg: 'bg-rose-50/50 dark:bg-rose-950/20' }
                 ];
 
                 columnas.forEach(col => {
-                    const leadsCol = filtrados.filter(l => l.estado === col.id);
+                    const leadsCol = filtrados.filter(l => l.estado === col.id).sort((a, b) => scoreLead(b) - scoreLead(a));
                     let cardsHtml = '';
 
                     leadsCol.forEach(lead => {
                         const ultimaNota = lead.historial && lead.historial.length > 0 ? lead.historial[0].texto : 'Sin interacciones';
-                        cardsHtml += `
-                            <div class="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition space-y-3">
-                                <div class="flex justify-between items-start gap-2">
-                                    <h4 class="font-bold text-sm text-slate-800 dark:text-white leading-tight">${lead.nombre}</h4>
-                                    <button onclick='abrirModalManual("${lead.id}")' class="text-slate-400 hover:text-blue-500 transition"><i class="fa-solid fa-pen-to-square text-xs"></i></button>
-                                </div>
-                                <p class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5"><i class="fa-solid fa-phone text-slate-400"></i> ${lead.telefono || 'Sin teléfono'}</p>
-                                <div class="p-2.5 bg-slate-50 dark:bg-slate-800/80 rounded-lg text-xs text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/50">
-                                    <span class="font-semibold text-[10px] uppercase text-slate-400 block mb-0.5">Último Avance:</span>
-                                    <p class="truncate">${ultimaNota}</p>
-                                </div>
-                                <div class="flex justify-between items-center pt-1 border-t border-slate-100 dark:border-slate-800">
-                                    <button onclick="cambiarEstadoRapido('${lead.id}', -1)" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-xs"><i class="fa-solid fa-chevron-left"></i></button>
-                                    <span class="text-[10px] font-semibold text-slate-400">${lead.historial ? lead.historial.length : 0} notas</span>
-                                    <button onclick="cambiarEstadoRapido('${lead.id}', 1)" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-xs"><i class="fa-solid fa-chevron-right"></i></button>
-                                </div>
-                            </div>
-                        `;
+                        cardsHtml += tarjetaKanban(lead, col);
                     });
 
                     kanbanContainer.innerHTML += `
-                        <div class="flex flex-col rounded-2xl border border-slate-200 dark:border-slate-800 ${col.bg} p-4 min-h-[500px]">
+                        <div ondragover="event.preventDefault()" ondrop="soltarLead(event, '${col.id}')" class="flex flex-col rounded-2xl border border-slate-200 dark:border-slate-800 ${col.bg} p-4 min-h-[500px]">
                             <div class="flex justify-between items-center mb-4 pb-2 border-b-2 ${col.color}">
                                 <h3 class="font-bold text-sm text-slate-800 dark:text-white">${col.title}</h3>
                                 <span class="px-2 py-0.5 rounded-full bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold shadow-sm">${leadsCol.length}</span>
@@ -1269,22 +1504,23 @@
                             <td class="py-4 px-4 text-center">
                                 <input type="checkbox" value="${c.id}" ${isChecked} onchange="toggleSelectCarteraRow('${c.id}', this)" class="cartera-row-checkbox w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer">
                             </td>
-                            <td class="py-4 px-6 font-semibold text-slate-800 dark:text-white">${c.nombre}</td>
-                            <td class="py-4 px-6 text-slate-500 dark:text-slate-400">${c.telefono || 'Sin teléfono'}</td>
+                            <td class="py-4 px-6 font-semibold text-slate-800 dark:text-white">${esc(c.nombre)}</td>
+                            <td class="py-4 px-6 text-slate-500 dark:text-slate-400">${esc(c.telefono) || 'Sin teléfono'}</td>
                             <td class="py-4 px-6">
                                 <select onchange="cambiarEstadoInline('${c.id}', this.value)" class="px-3 py-1.5 rounded-xl text-xs font-bold border outline-none cursor-pointer transition shadow-sm ${
                                     c.estado === 'Nuevo' ? 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/50 dark:text-blue-400 dark:border-blue-900' :
                                     c.estado === 'Contactado' ? 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-900' :
                                     c.estado === 'Negociacion' ? 'bg-indigo-50 text-indigo-600 border-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-400 dark:border-indigo-900' :
+                                    c.estado === 'Perdido' ? 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/50 dark:text-rose-400 dark:border-rose-900' :
                                     'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-900'
                                 }">
                                     <option value="Nuevo" ${c.estado === 'Nuevo' ? 'selected' : ''}>Nuevo Lead</option>
                                     <option value="Contactado" ${c.estado === 'Contactado' ? 'selected' : ''}>Contactado</option>
                                     <option value="Negociacion" ${c.estado === 'Negociacion' ? 'selected' : ''}>En Negociación</option>
-                                    <option value="Cerrado" ${c.estado === 'Cerrado' ? 'selected' : ''}>Cerrado / Cliente</option>
+                                    <option value="Cerrado" ${c.estado === 'Cerrado' ? 'selected' : ''}>Cerrado / Cliente</option><option value="Perdido" ${c.estado === 'Perdido' ? 'selected' : ''}>Perdido</option>
                                 </select>
                             </td>
-                            <td class="py-4 px-6 text-slate-600 dark:text-slate-300 text-xs truncate max-w-xs">${ultimaNota}</td>
+                            <td class="py-4 px-6 text-slate-600 dark:text-slate-300 text-xs truncate max-w-xs">${esc(ultimaNota)}</td>
                             <td class="py-4 px-6 text-center space-x-2">
                                 <button onclick='abrirModalManual("${c.id}")' class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold transition shadow-sm">Editar</button>
                                 <button onclick="eliminarCartera('${c.id}')" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold transition shadow-sm">Eliminar</button>
@@ -1327,7 +1563,7 @@
             selectedCarteraTableIds.clear();
             document.getElementById('table-selected-count').innerText = '0';
             document.getElementById('select-all-cartera-table').checked = false;
-            localStorage.setItem('crm_b2b_cartera_v2', JSON.stringify(carteraDb));
+            guardarCartera();
             renderizarCartera();
             actualizarContadorSidebar();
             mostrarNotificacion("Prospectos seleccionados eliminados con éxito.", "success");
@@ -1339,8 +1575,8 @@
 
             lead.estado = nuevoEstado;
             if (!lead.historial) lead.historial = [];
-            lead.historial.unshift({ fecha: new Date().toLocaleDateString(), texto: `Estado cambiado a ${nuevoEstado} desde tabla` });
-            localStorage.setItem('crm_b2b_cartera_v2', JSON.stringify(carteraDb));
+            lead.historial.unshift({ ts: new Date().toISOString(), fecha: new Date().toLocaleDateString(), texto: `Estado cambiado a ${nuevoEstado} desde tabla` });
+            guardarCartera();
             renderizarCartera();
             actualizarContadorSidebar();
             mostrarNotificacion(`Estado actualizado a ${nuevoEstado}.`, "success");
@@ -1357,8 +1593,8 @@
             if (newIndex >= 0 && newIndex < estados.length) {
                 lead.estado = estados[newIndex];
                 if (!lead.historial) lead.historial = [];
-                lead.historial.unshift({ fecha: new Date().toLocaleDateString(), texto: `Estado cambiado a ${lead.estado}` });
-                localStorage.setItem('crm_b2b_cartera_v2', JSON.stringify(carteraDb));
+                lead.historial.unshift({ ts: new Date().toISOString(), fecha: new Date().toLocaleDateString(), texto: `Estado cambiado a ${lead.estado}` });
+                guardarCartera();
                 renderizarCartera();
                 actualizarContadorSidebar();
             }
@@ -1366,13 +1602,14 @@
 
         function eliminarCartera(id) {
             carteraDb = carteraDb.filter(c => c.id !== id);
-            localStorage.setItem('crm_b2b_cartera_v2', JSON.stringify(carteraDb));
+            guardarCartera();
             renderizarCartera();
             actualizarContadorSidebar();
             mostrarNotificacion("Lead eliminado de la cartera.", "success");
         }
 
         function actualizarDashboard() {
+            renderPanelHoy();
             document.getElementById('stat-total').innerText = carteraDb.length;
             document.getElementById('stat-contactados').innerText = carteraDb.filter(c => c.estado === 'Contactado').length;
             document.getElementById('stat-negociacion').innerText = carteraDb.filter(c => c.estado === 'Negociacion').length;
@@ -1385,7 +1622,7 @@
             carteraDb.forEach(c => {
                 if (c.historial) {
                     c.historial.forEach(h => {
-                        allActivities.push({ nombre: c.nombre, fecha: h.fecha, texto: h.texto });
+                        allActivities.push({ nombre: c.nombre, fecha: h.fecha, texto: h.texto, ts: h.ts || '' });
                     });
                 }
             });
@@ -1395,12 +1632,12 @@
                 return;
             }
 
-            allActivities.slice(0, 6).forEach(act => {
+            allActivities.sort((a, b) => (b.ts || '').localeCompare(a.ts || '')).slice(0, 6).forEach(act => {
                 activityList.innerHTML += `
                     <div class="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700/60 flex items-center justify-between text-xs">
                         <div>
-                            <span class="font-bold text-slate-800 dark:text-white">${act.nombre}</span>
-                            <p class="text-slate-500 dark:text-slate-400 mt-0.5">${act.texto}</p>
+                            <span class="font-bold text-slate-800 dark:text-white">${esc(act.nombre)}</span>
+                            <p class="text-slate-500 dark:text-slate-400 mt-0.5">${esc(act.texto)}</p>
                         </div>
                         <span class="text-blue-500 font-medium whitespace-nowrap ml-4">${act.fecha}</span>
                     </div>
@@ -1409,24 +1646,10 @@
         }
 
         function exportarCSV() {
-            if (carteraDb.length === 0) {
-                mostrarNotificacion("No hay datos en la cartera para exportar.", "error");
-                return;
-            }
-
-            let csvContent = "data:text/csv;charset=utf-8,Nombre,Telefono,Direccion,Estado\n";
-            carteraDb.forEach(c => {
-                csvContent += `"${c.nombre}","${c.telefono || ''}","${c.direccion || ''}","${c.estado}"\n`;
-            });
-
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "cartera_prospectos_crm.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            mostrarNotificacion("Archivo CSV exportado con éxito.", "success");
+            if (!carteraDb.length) { mostrarNotificacion("No hay leads para exportar.", "error"); return; }
+            descargarCSV('cartera_prospectos_crm.csv', [['Nombre', 'Rubro', 'Telefono', 'Direccion', 'Web', 'Estado', 'Ultima nota'],
+                ...carteraDb.map(c => [c.nombre, c.rubro, c.telefono, c.direccion, c.web, c.estado, (c.historial && c.historial[0]) ? c.historial[0].texto : ''])]);
+            mostrarNotificacion("Cartera exportada a CSV.");
         }
 
         function mostrarNotificacion(mensaje, tipo = 'success') {
