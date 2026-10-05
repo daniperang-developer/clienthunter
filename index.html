@@ -1860,19 +1860,71 @@ const COLORS={
   mantequilla:{f:'#FED7AA',s:'#F97316',hf:'#FDBA74',hs:'#C2410C'}
 };
 
+function cajaP(e){const d=e.dim,x=e.ex||{},W=d.ancho,n=(v,df)=>v==null||isNaN(v)?df:v;
+  const p={g:n(x.pegue,4),fb:n(x.fondo,4),td:n(x.tapa,W),od:n(x.oreja,W*.8),oi:n(x.inset,W*.15)};
+  p.top=Math.max(p.td,p.od);p.aD=(d.largo+W)*2+p.g;p.hD=d.alto+p.top+p.fb;return p;}
+function setEx(k,v){const e=G.est.caja;(e.ex=e.ex||{})[k]=v===''?undefined:Math.max(0,parseFloat(v)||0);draw();}
+function addExtra(t){const e=G.est.caja,d=e.dim,L=d.largo,W=d.ancho,H=d.alto;
+  const P={pared:['Pared doble',2*(L+W),H],piso:['Piso',L,W],marco:['Marco',L,W],otra:['Pieza extra',10,10]}[t];
+  (e.extras=e.extras||[]).push({nombre:P[0],w:P[1],h:P[2],n:1});draw();}
+function setExtra(i,k,v){G.est.caja.extras[i][k]=k==='nombre'?v:Math.max(0,parseFloat(v)||0);draw();}
+function delExtra(i){G.est.caja.extras.splice(i,1);draw();}
+// ¿Caben las piezas extra en el sobrante del pliego? (rectángulos libres a la derecha y abajo, guillotina)
+function extrasCalc(e,aD,hD,nH,nV,pM,cfg){
+  const X=(e.extras||[]).filter(x=>x.w>0&&x.h>0&&x.n>0);if(!X.length)return null;
+  const uw=nH*aD,uh=nV*hD,R=[];
+  if(cfg.pw-uw>.5)R.push([cfg.pw-uw,cfg.ph]);if(cfg.ph-uh>.5&&uw>0)R.push([uw,cfg.ph-uh]);
+  const full=(w,h)=>Math.max(Math.floor(cfg.pw/w)*Math.floor(cfg.ph/h),Math.floor(cfg.pw/h)*Math.floor(cfg.ph/w));
+  let ep=0;
+  const det=X.map(x=>{
+    const tot=x.n*e.qty,need=Math.ceil(tot/pM);let b=null;
+    R.forEach(([rw,rh],i)=>[[x.w,x.h],[x.h,x.w]].forEach(([w,h])=>{const c=Math.floor(rw/w),r=Math.floor(rh/h);if(c*r>0&&(!b||c*r>b.cap))b={i,cap:c*r,w,h,c};}));
+    let k=0;
+    if(b){k=Math.min(need,b.cap);const[rw,rh]=R[b.i],cu=Math.min(k,b.c),w2=cu*b.w,h2=Math.ceil(k/b.c)*b.h;
+      R.splice(b.i,1,...[[rw-w2,rh],[w2,rh-h2]].filter(a=>a[0]>.5&&a[1]>.5));}
+    const rest=Math.max(0,tot-k*pM),pf=full(x.w,x.h),pl=pf&&rest?Math.ceil(rest/pf):0;ep+=pl;
+    return{perSheet:k,rest,pliegos:pl,fits:rest<=0,imp:!pf};
+  });
+  return{det,pliegos:Math.ceil(ep*(1+cfg.merma/100))};
+}
+function rEdit(){
+  if(G.prod!=='caja')return '';
+  const e=G.est.caja,p=cajaP(e);
+  const f=(k,l,v)=>`<div class="fld"><label class="flbl">${l}</label><input type="number" step="0.1" min="0" value="${+v.toFixed(2)}" onchange="setEx('${k}',this.value)"/></div>`;
+  return `<div class="panel"><div class="ph"><span class="pt">Editor del desarrollo</span><button class="bdg gray" style="cursor:pointer;border:none" onclick="G.est.caja.ex={};draw()">Restablecer</button></div><div class="pb">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${f('pegue','Pegue (cm)',p.g)}${f('fondo','Solapas fondo (cm)',p.fb)}${f('tapa','Tapa, profundidad (cm)',p.td)}${f('oreja','Orejas, profundidad (cm)',p.od)}${f('inset','Orejas, inclinación (cm)',p.oi)}</div>
+    <p class="hint">Cada cambio redibuja las piezas y recalcula montaje, pliegos y precio. Desarrollo resultante: ${p.aD.toFixed(1)}×${p.hD.toFixed(1)} cm.</p></div></div>`;
+}
+function rExtras(){
+  if(G.prod!=='caja')return '';
+  const e=G.est.caja,c=cc(),X=e.extras||[],ex=c.ex,cu=G.db.sustratos.find(s=>s.id===e.sId)?.costo||0;
+  const inp=(i,k,v,w)=>`<input type="${k==='nombre'?'text':'number'}" step="0.1" min="0" value="${v}" style="width:${w}px" onchange="setExtra(${i},'${k}',this.value)"/>`;
+  const rows=X.map((x,i)=>{const r=ex&&ex.det[X.filter(y=>y.w>0&&y.h>0&&y.n>0).indexOf(x)];
+    return `<div style="padding:8px 0;border-bottom:1px solid #f1f5f9"><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${inp(i,'nombre',x.nombre,110)}${inp(i,'w',x.w,60)}×${inp(i,'h',x.h,60)} cm · ${inp(i,'n',x.n,44)} por caja<button class="bdg gray" style="cursor:pointer;border:none;margin-left:auto" onclick="delExtra(${i})">✕</button></div>
+    ${r?`<div style="font-size:12px;margin-top:4px;color:${r.fits?'#166534':'#b45309'}">${r.fits?`✓ Caben ${r.perSheet} por pliego en los sobrantes: sin pliegos adicionales.`:r.imp?'✗ La pieza no cabe en el pliego.':`⚠ En los sobrantes caben ${r.perSheet} por pliego; faltan ${fm(r.rest)} piezas → ${fm(r.pliegos)} pliegos extra.`}</div>`:''}</div>`;}).join('');
+  return `<div class="panel"><div class="ph"><span class="pt">Piezas extra (mismo material)</span><span class="bdg ${ex&&ex.pliegos?'warn':'green'}">${ex&&ex.pliegos?'+'+fm(ex.pliegos)+' pliegos':X.length?'Sin costo extra':'Ninguna'}</span></div><div class="pb">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">${[['pared','+ Pared doble'],['piso','+ Piso'],['marco','+ Marco'],['otra','+ Otra']].map(([k,l])=>`<button class="bdg gray" style="cursor:pointer;border:none" onclick="addExtra('${k}')">${l}</button>`).join('')}</div>
+    ${rows||'<p class="hint">Agrega paredes dobles, pisos o marcos: se revisa si caben en el sobrante del pliego de la caja; si no caben, se suman pliegos del mismo sustrato al costo.</p>'}
+    ${ex&&ex.pliegos?`<p class="hint">Costo adicional de material: $${fm(Math.round(ex.pliegos*cu))}</p>`:''}</div></div>`;
+}
+function baseDims(){
+  const e=G.est[G.prod];
+  if(G.prod==='caja'){const p=cajaP(e);return{aD:p.aD,hD:p.hD};}
+  if(G.prod==='bolsa')return{aD:e.dim.largo+e.dim.fuelle*2+2,hD:e.dim.ancho+e.dim.solapa+2};
+  if(G.prod==='sticker')return{aD:e.dim.largo+e.dim.sangria*2,hD:e.dim.ancho+e.dim.sangria*2};
+  return{aD:e.dim.largo,hD:e.dim.ancho};
+}
+
 function cc(){
   const e=G.est[G.prod],cfg=G.db.config;
-  let aD,hD;
-  if(G.prod==='caja'){aD=(e.dim.largo+e.dim.ancho)*2+4;hD=e.dim.alto+e.dim.ancho+4;}
-  else if(G.prod==='bolsa'){aD=e.dim.largo+e.dim.fuelle*2+2;hD=e.dim.ancho+e.dim.solapa+2;}
-  else if(G.prod==='sticker'){aD=e.dim.largo+e.dim.sangria*2;hD=e.dim.ancho+e.dim.sangria*2;}
-  else{aD=e.dim.largo;hD=e.dim.ancho;}
-  if(G.rotado&&G.prod!=='mantequilla'){let t=aD;aD=hD;hD=t;}
+  let {aD,hD}=baseDims();
+  if(G.rotado){const t=aD;aD=hD;hD=t;}
   const pH=Math.floor(cfg.pw/aD),pV=Math.floor(cfg.ph/hD);
   const upp=Math.max(1,pH*pV);
   const sust=G.db.sustratos.find(s=>s.id===e.sId);
   const pN=Math.ceil(e.qty/upp),pM=Math.ceil(pN*(1+cfg.merma/100));
-  const cMat=pM*(sust?.costo||0);
+  const ex=G.prod==='caja'?extrasCalc(e,aD,hD,pH,pV,pM,cfg):null;
+  const cMat=(pM+(ex?ex.pliegos:0))*(sust?.costo||0);
   const imp=G.db.impresion.find(i=>i.id===e.iId);
   const cImp=(imp?.cp||0)*e.pl;
   const da=e.ac.map(id=>{const a=G.db.acabados.find(x=>x.id===id);return{id,nombre:a?.nombre||'',unit:a?.cu||0,total:(a?.cu||0)*e.qty};});
@@ -1882,16 +1934,22 @@ function cc(){
   const ap=aD*hD,apl=cfg.pw*cfg.ph,efic=(ap*upp/apl)*100;
   return{aD,hD,upp,pH:Math.max(1,pH),pV:Math.max(1,pV),pM,pN,
     cMat,cImp,cA,cL,sub,util,total,unit:e.qty>0?total/e.qty:0,
-    sN:sust?.nombre,iN:imp?.nombre,da,ap,apl,efic,waste:apl-ap*upp};
+    ex,sN:sust?.nombre,iN:imp?.nombre,da,ap,apl,efic,waste:apl-ap*upp};
 }
 
 function calcOr(){
-  const c=cc(),cfg=G.db.config;
-  const uN=Math.max(1,Math.floor(cfg.pw/c.aD)*Math.floor(cfg.ph/c.hD));
-  const eN=(c.aD*c.hD*uN/(cfg.pw*cfg.ph))*100;
-  const uR=Math.max(1,Math.floor(cfg.pw/c.hD)*Math.floor(cfg.ph/c.aD));
-  const eR=(c.hD*c.aD*uR/(cfg.pw*cfg.ph))*100;
-  return{normal:{upp:uN,pW:c.aD,pH:c.hD,eff:eN},rotado:{upp:uR,pW:c.hD,pH:c.aD,eff:eR}};
+  const cfg=G.db.config,e=G.est[G.prod],b=baseDims();
+  const sust=G.db.sustratos.find(x=>x.id===e.sId);
+  const info=(aD,hD)=>{
+    const nH=Math.floor(cfg.pw/aD),nV=Math.floor(cfg.ph/hD),upp=Math.max(1,nH*nV);
+    const pN=Math.ceil(e.qty/upp),pM=Math.ceil(pN*(1+cfg.merma/100));
+    return{upp,nH:Math.max(1,nH),nV:Math.max(1,nV),pW:aD,pH:hD,eff:(aD*hD*upp/(cfg.pw*cfg.ph))*100,pM,mat:pM*(sust?.costo||0)};
+  };
+  const normal=info(b.aD,b.hD),rotado=info(b.hD,b.aD);
+  // "Mejor" = la que usa menos pliegos (menor costo de material); si empatan, la que mete más piezas por pliego
+  const cmp=(x,y)=>x.pM!==y.pM?x.pM-y.pM:y.upp-x.upp;
+  const mejor=cmp(normal,rotado)<0?'normal':cmp(normal,rotado)>0?'rotado':null;
+  return{normal,rotado,mejor,actual:G.rotado?'rotado':'normal'};
 }
 
 const fm=(n,d=0)=>Number(n).toLocaleString('es',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -1904,19 +1962,99 @@ const chk=()=>`<svg class="acchk" viewBox="0 0 8 8" fill="none" style="width:8px
 function toast(m){const t=document.getElementById('box-toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
 function copyU(){const c=cc();navigator.clipboard?.writeText(f3(c.unit)).then(()=>toast('Copiado: $'+f3(c.unit)));}
 
+const POLY_AREA=pts=>{let t=0;for(let i=0;i<pts.length;i++){const[a,b]=pts[i],[c,d]=pts[(i+1)%pts.length];t+=a*d-c*b;}return Math.abs(t)/2;};
+
+// Desarrollo de la caja dentro del rectángulo aD x hD (mismos "+4" del cálculo): pegue 4 cm a la izquierda,
+// tapa de profundidad = ancho arriba, solapas de fondo de 4 cm abajo, y orejas a cada lado de la tapa.
+function cajaGeom(e){
+  const d=e.dim,p=cajaP(e),L=d.largo,W=d.ancho,H=d.alto,g=p.g,fb=p.fb;
+  if(!(L>0&&W>0&&H>0))return null;
+  const aD=p.aD,hD=p.hD,yB=p.top,yF=p.top+H;
+  const xs=[g,g+L,g+L+W,g+2*L+W,g+2*L+2*W];
+  const pl=(tipo,pts)=>({tipo,pts,a:POLY_AREA(pts)}),Q=[];
+  for(let i=0;i<4;i++)Q.push(pl('cuerpo',[[xs[i],yB],[xs[i+1],yB],[xs[i+1],yF],[xs[i],yF]]));
+  const k=Math.min(1.5,H/4);
+  Q.push(pl('pestana',[[g,yB],[g*.08,yB+k],[g*.08,yF-k],[g,yF]]));
+  const y0=yB-p.td,q=Math.min(p.td*.2,L*.1);
+  Q.push(pl('tapa',[[xs[2],yB],[xs[3],yB],[xs[3],y0+q],[xs[3]-q,y0],[xs[2]+q,y0],[xs[2],y0+q]]));
+  const de=p.od,oi=Math.min(p.oi,W/2);
+  [[xs[1],xs[2]],[xs[3],xs[4]]].forEach(([a,c])=>Q.push(pl('oreja',[[a,yB],[c,yB],[c-oi,yB-de],[a+oi,yB-de]])));
+  for(let i=0;i<4;i++){const a=xs[i],c=xs[i+1],kk=Math.min(1,(c-a)/4);Q.push(pl('fondo',[[a,yF],[c,yF],[c-kk,yF+fb],[a+kk,yF+fb]]));}
+  const sum=t=>Q.filter(p=>t.includes(p.tipo)).reduce((a,p)=>a+p.a,0);
+  const total=aD*hD,A={cuerpo:sum(['cuerpo']),tapa:sum(['tapa']),oreja:sum(['oreja']),pestana:sum(['pestana','fondo'])};
+  A.libre=Math.max(0,total-A.cuerpo-A.tapa-A.oreja-A.pestana);
+  return{aD,hD,P:Q,areas:A,total,cx:(xs[0]+xs[1])/2,cy:yB+H/2};
+}
+
+function cajaPiece(gj,sc,x,y,col,hi,rot,mini){
+  const tf=rot?`translate(${x.toFixed(2)} ${y.toFixed(2)}) scale(${sc}) matrix(0 1 -1 0 ${gj.hD} 0)`:`translate(${x.toFixed(2)} ${y.toFixed(2)}) scale(${sc})`;
+  const st={cuerpo:[hi?col.hf:col.f,hi?col.hs:col.s,1],tapa:[hi?col.hf:col.f,hi?col.hs:col.s,.75],pestana:[col.f,col.s,.5],fondo:[col.f,col.s,.5],oreja:[hi?'#FCD34D':'#FDE68A','#D97706',1]};
+  const pts=Q=>Q.map(p=>p.join(',')).join(' ');
+  return `<g transform="${tf}">
+    ${mini?'':`<rect x="0" y="0" width="${gj.aD}" height="${gj.hD}" fill="#fff" fill-opacity=".45" stroke="${col.s}" stroke-width=".6" stroke-dasharray="2 2" vector-effect="non-scaling-stroke"/>`}
+    ${gj.P.map(p=>{const t=st[p.tipo];return`<polygon points="${pts(p.pts)}" fill="${t[0]}" fill-opacity="${t[2]}" stroke="${t[1]}" stroke-width="${mini?.4:hi?1.2:.7}" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>`;}).join('')}
+  </g>`;
+}
+
+const ORN=k=>k==='rotado'?'Rotado 90°':'Normal';
+function orSaving(a,o){const dp=a.pM-o.pM,dm=a.mat-o.mat;return dp>0?` Ahorra ${fm(dp)} pliegos (≈ $${fm(Math.round(dm))} de material).`:' Con esta cantidad el costo de material es el mismo.';}
+const APLICAR=k=>`<button style="margin-left:auto;background:none;border:none;cursor:pointer;color:inherit;font-family:inherit;font-size:12px;text-decoration:underline" onclick="G.rotado=${k==='rotado'};draw()">Aplicar</button>`;
+
+// Aviso del cotizador (resumen de montaje)
+function orUI(c,or){
+  const cur=or.actual,ec=eCls(c.efic),better=or.mejor&&or.mejor!==cur;
+  let hint='',badgeCls=c.efic<50?'warn':ec,badgeTxt=`${c.upp} up · ${c.efic.toFixed(0)}% efic.`;
+  if(better){
+    const o=or[or.mejor],a=or[cur];
+    badgeCls='warn';badgeTxt=`⚠ Mejor: ${ORN(or.mejor)} · ${o.upp} up`;
+    hint=`<div class="effalert">⚠ Conviene <b>${ORN(or.mejor)}</b>: ${o.upp} piezas por pliego (en uso: ${a.upp}).${orSaving(a,o)}${APLICAR(or.mejor)}</div>`;
+  }else if(c.efic<50){
+    hint=`<div class="effalert">⚠ Eficiencia baja (${c.efic.toFixed(0)}%), aunque ya usas la mejor orientación posible.</div>`;
+  }
+  return{hint,badgeCls,badgeTxt};
+}
+
+// Recomendación de la pestaña Montaje
+function orSummary(or){
+  if(!or.mejor)return `<div class="effalert" style="background:#f8fafc;border-color:#e2e8f0;color:#475569">Las dos orientaciones rinden igual (${or.normal.upp} up y los mismos pliegos). Da lo mismo cuál uses.</div>`;
+  const o=or[or.mejor],a=or[or.mejor==='rotado'?'normal':'rotado'];
+  if(or.mejor===or.actual)return `<div class="effalert" style="background:#f0fdf4;border-color:#bbf7d0;color:#166534">✓ Ya estás usando la mejor orientación: <b>${ORN(or.actual)}</b> (${o.upp} up vs ${a.upp}).${orSaving(a,o)}</div>`;
+  return `<div class="effalert">⚠ Conviene <b>${ORN(or.mejor)}</b>: ${o.upp} up vs ${a.upp} de la orientación en uso.${orSaving(a,o)}${APLICAR(or.mejor)}</div>`;
+}
+
+function rAnat(){
+  if(G.prod!=='caja')return '';
+  const g=cajaGeom(G.est.caja);if(!g)return '';
+  const A=g.areas,T=g.total,col=COLORS.caja;
+  const row=(l,a,bg,bd,op)=>`<div class="sr2"><span class="sl" style="display:flex;align-items:center;gap:7px"><span class="legdot" style="background:${bg};border:1px solid ${bd};opacity:${op||1}"></span>${l}</span><span class="sv">${a.toFixed(0)} cm² <span style="color:#94a3b8;font-weight:400">· ${(a/T*100).toFixed(0)}%</span></span></div>`;
+  return `<div class="panel">
+    <div class="ph"><span class="pt">Anatomía de la pieza</span><span class="bdg gray">${T.toFixed(0)} cm² por pieza</span></div>
+    <div class="pb"><div class="statlist">
+      ${row('Cuerpo (4 paneles)',A.cuerpo,col.f,col.s)}
+      ${row('Tapa',A.tapa,col.f,col.s,.75)}
+      ${row('Orejas (2 laterales de la tapa)',A.oreja,'#FDE68A','#D97706')}
+      ${row('Pestañas (pegue y fondo)',A.pestana,col.f,col.s,.5)}
+      ${row('Esquinas libres',A.libre,'#fff','#94a3b8')}
+    </div>
+    <p class="hint">Todo esto está dentro del desarrollo ${g.aD.toFixed(1)}×${g.hD.toFixed(1)} cm: las orejas y pestañas ya cuentan en el área usada del pliego, y también las esquinas libres porque las piezas se acomodan por su rectángulo.</p></div>
+  </div>`;
+}
+
 function buildSVG(c,W,H,mini){
   const cfg=G.db.config,zoom=mini?1:G.zoom/100;
   const sc=Math.min(W/cfg.pw,H/cfg.ph)*zoom;
   const sW=Math.round(cfg.pw*sc),sH=Math.round(cfg.ph*sc);
   const pwp=c.aD*sc,php=c.hD*sc;
   const col=COLORS[G.prod]||COLORS.caja;
+  const gj=G.prod==='caja'?cajaGeom(G.est.caja):null;
+  const lb=gj?(G.rotado?[(gj.hD-gj.cy)*sc,gj.cx*sc]:[gj.cx*sc,gj.cy*sc]):[pwp/2,php/2];
   let p='';
   for(let r=0;r<c.pV;r++) for(let k=0;k<c.pH;k++){
     const idx=r*c.pH+k+1,x=k*pwp,y=r*php,hi=!mini&&G.hov===idx;
     p+=`<g${mini?'':` class="p" data-i="${idx}" style="cursor:pointer"`}>
-      <rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(pwp-.5).toFixed(1)}" height="${(php-.5).toFixed(1)}" rx="1"
-        fill="${hi?col.hf:col.f}" stroke="${hi?col.hs:col.s}" stroke-width="${hi?1.5:.5}"/>
-      ${!mini&&pwp>24&&php>14?`<text x="${(x+pwp/2).toFixed(1)}" y="${(y+php/2+4).toFixed(1)}" text-anchor="middle" font-size="${Math.min(11,pwp/4.5).toFixed(1)}" fill="${col.hs}" font-family="sans-serif" font-weight="500">${idx}</text>`:''}
+      ${gj?cajaPiece(gj,sc,x,y,col,hi,G.rotado,mini):`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(pwp-.5).toFixed(1)}" height="${(php-.5).toFixed(1)}" rx="1"
+        fill="${hi?col.hf:col.f}" stroke="${hi?col.hs:col.s}" stroke-width="${hi?1.5:.5}"/>`}
+      ${!mini&&pwp>24&&php>14?`<text x="${(x+lb[0]).toFixed(1)}" y="${(y+lb[1]+4).toFixed(1)}" text-anchor="middle" font-size="${Math.min(11,pwp/4.5).toFixed(1)}" fill="${col.hs}" font-family="sans-serif" font-weight="500">${idx}</text>`:''}
     </g>`;
   }
   const uW=c.pH*pwp,uH=c.pV*php,mW=Math.round(sW*.04),mH=Math.round(sH*.04);
@@ -1942,6 +2080,7 @@ function attachSVG(c){
           <div class="ir"><span>Posición</span><span>Fila ${row}, col ${col}</span></div>
           <div class="ir"><span>Desarrollo</span><span>${c.aD.toFixed(1)}×${c.hD.toFixed(1)} cm</span></div>
           <div class="ir"><span>Área</span><span>${c.ap.toFixed(1)} cm²</span></div>
+          ${G.prod==='caja'&&cajaGeom(G.est.caja)?`<div class="ir"><span>Orejas</span><span>${cajaGeom(G.est.caja).areas.oreja.toFixed(0)} cm²</span></div>`:''}
           <div class="ir"><span>Producto</span><span>${PRODS.find(p=>p.id===G.prod)?.label}</span></div>
         </div>`;
       redrawSVG(c);
@@ -2127,7 +2266,7 @@ function exportPDF(){
 
 function rCot(){
   const c=cc(),e=G.est[G.prod],ec=eCls(c.efic),or=calcOr();
-  const best=or.rotado.upp>or.normal.upp?'rotado':'normal',low=c.efic<50;
+  const ui=orUI(c,or);
   const acF=G.db.acabados.filter(a=>a.prods.includes(G.prod));
   const sF=G.db.sustratos.filter(s=>s.prods.includes(G.prod));
   const rows=[
@@ -2182,10 +2321,9 @@ function rCot(){
     </div>
     <div class="col">
       <div class="panel">
-        <div class="ph"><span class="pt">Resumen de montaje</span><span class="bdg ${low?'warn':ec}">${low?`⚠ Rotar → ${or[best].upp} up`:`${c.upp} up · ${c.efic.toFixed(0)}% efic.`}</span></div>
+        <div class="ph"><span class="pt">Resumen de montaje</span><span class="bdg ${ui.badgeCls}" id="or-badge">${ui.badgeTxt}</span></div>
         <div class="pb">
-          ${low?`<div class="effalert">⚠ Efic. baja (${c.efic.toFixed(0)}%). Orientación <b>${best}</b>: ${or[best].upp} up / ${or[best].eff.toFixed(0)}%.
-            <button style="margin-left:auto;background:none;border:none;cursor:pointer;color:inherit;font-family:inherit;font-size:12px;text-decoration:underline" onclick="G.rotado=${best==='rotado'};draw()">Aplicar</button></div>`:''}
+          <div id="or-hint">${ui.hint}</div>
           <div class="minimont">
             <div class="minisvg">${buildSVG(c,130,100,true)}</div>
             <div>
@@ -2251,6 +2389,7 @@ function rMont(){
       <div class="pb">
         <div class="legend">
           ${PRODS.map(p=>{const col=COLORS[p.id];return`<div class="legi"><div class="legdot" style="background:${col.f};border:1px solid ${col.s}"></div>${p.icon} ${p.label}</div>`;}).join('')}
+          ${G.prod==='caja'?`<div class="legi"><div class="legdot" style="background:#FDE68A;border:1px solid #D97706"></div>Orejas</div><div class="legi"><div class="legdot" style="background:${COLORS.caja.f};opacity:.55;border:1px solid ${COLORS.caja.s}"></div>Tapa y pestañas</div>`:''}
           <div class="legi"><div class="legdot" style="background:#FEE2E2;border:1px solid #FCA5A5"></div>Merma</div>
         </div>
         <div class="svgouter" id="svg-outer">${buildSVG(c,300,210,false)}</div>
@@ -2281,24 +2420,26 @@ function rMont(){
           </div>
         </div>
       </div>
+      ${rAnat()}${rEdit()}${rExtras()}
       <div class="panel">
         <div class="ph"><span class="pt">Comparativo de orientaciones</span></div>
         <div class="pb">
+          ${orSummary(or)}
           <div class="orientg">
             ${['normal','rotado'].map(k=>{
-              const o=or[k],isA=(k==='normal'&&!G.rotado)||(k==='rotado'&&G.rotado);
-              const best2=or.rotado.upp>=or.normal.upp?'rotado':'normal';
+              const o=or[k],isA=or.actual===k,isB=or.mejor===k;
               return`<div class="oc${isA?' active':''}" onclick="G.rotado=${k==='rotado'};draw()">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-                  <span style="font-size:12px;font-weight:600">${k==='normal'?'Normal':'Rotado 90°'}</span>
-                  ${k===best2?`<span class="bdg green" style="font-size:10px">mejor</span>`:''}
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:6px;flex-wrap:wrap">
+                  <span style="font-size:12px;font-weight:600">${ORN(k)}</span>
+                  <span style="display:flex;gap:4px">${isA?`<span class="bdg blue" style="font-size:10px">en uso</span>`:''}${isB?`<span class="bdg green" style="font-size:10px">mejor</span>`:''}</span>
                 </div>
                 <div style="font-size:22px;font-weight:600;color:#1d4ed8;margin-bottom:2px">${o.upp} up</div>
-                <div style="font-size:11px;color:#94a3b8">${o.pW.toFixed(1)}×${o.pH.toFixed(1)} cm · Efic. ${o.eff.toFixed(1)}%</div>
+                <div style="font-size:11px;color:#94a3b8">Arreglo ${o.nH}×${o.nV} · Pieza ${o.pW.toFixed(1)}×${o.pH.toFixed(1)} cm · Efic. ${o.eff.toFixed(1)}%</div>
+                <div style="font-size:12px;margin-top:6px;color:#475569">${fm(o.pM)} pliegos c/merma · $${fm(Math.round(o.mat))} de material</div>
               </div>`;
             }).join('')}
           </div>
-          <p style="font-size:12px;color:#94a3b8;margin-top:10px">Clic para aplicar. Se sincroniza con el cotizador.</p>
+          <p style="font-size:12px;color:#94a3b8;margin-top:10px">Borde azul = la orientación que estás usando. Etiqueta verde = la que gasta menos pliegos. Clic en una tarjeta para aplicarla; se sincroniza con el cotizador.</p>
         </div>
       </div>
     </div>
@@ -2391,7 +2532,9 @@ function bindCot(){
 
 function rfrsh(){
   const c=cc(),e=G.est[G.prod],ec=eCls(c.efic),or=calcOr();
-  const best=or.rotado.upp>or.normal.upp?'rotado':'normal',low=c.efic<50;
+  const ui=orUI(c,or);
+  const ob=document.getElementById('or-badge');if(ob){ob.className='bdg '+ui.badgeCls;ob.textContent=ui.badgeTxt;}
+  const oh=document.getElementById('or-hint');if(oh)oh.innerHTML=ui.hint;
   const hcs=document.querySelectorAll('#box-root .hc');
   if(hcs[0])hcs[0].querySelector('.hc-v').textContent='$'+f3(c.unit);
   if(hcs[1]){hcs[1].querySelector('.hc-v').textContent='$'+fm(Math.round(c.total));hcs[1].querySelector('.hc-s').textContent=fm(e.qty)+' unidades';}
@@ -2511,7 +2654,7 @@ function cotizarLead(id){
 }
 function cotizarDesdeModal(){const id=document.getElementById('modal-id').value;guardarEnCRM();if(carteraDb.some(c=>c.id===id))cotizarLead(id);}
 draw();
-Object.assign(window,{G,draw,sw,setProd,setProdMont,togAc,togTag,addItem,saveHist,loadHist,exportPDF,copyU,cotizarLead,cotizarDesdeModal,boxDraw:draw});
+Object.assign(window,{G,draw,sw,setProd,setProdMont,togAc,togTag,addItem,saveHist,loadHist,exportPDF,copyU,cotizarLead,cotizarDesdeModal,setEx,addExtra,setExtra,delExtra,boxDraw:draw});
 })();
 </script>
 </body>
