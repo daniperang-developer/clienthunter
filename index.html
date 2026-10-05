@@ -1872,20 +1872,39 @@ function delExtra(i){G.est.caja.extras.splice(i,1);draw();}
 // ¿Caben las piezas extra en el sobrante del pliego? (rectángulos libres a la derecha y abajo, guillotina)
 function extrasCalc(e,aD,hD,nH,nV,pM,cfg){
   const X=(e.extras||[]).filter(x=>x.w>0&&x.h>0&&x.n>0);if(!X.length)return null;
-  const uw=nH*aD,uh=nV*hD,R=[];
-  if(cfg.pw-uw>.5)R.push([cfg.pw-uw,cfg.ph]);if(cfg.ph-uh>.5&&uw>0)R.push([uw,cfg.ph-uh]);
+  const uw=nH*aD,uh=nV*hD,R=[],place=[];
+  if(cfg.pw-uw>.5)R.push([uw,0,cfg.pw-uw,cfg.ph]);if(cfg.ph-uh>.5&&uw>0)R.push([0,uh,uw,cfg.ph-uh]);
   const full=(w,h)=>Math.max(Math.floor(cfg.pw/w)*Math.floor(cfg.ph/h),Math.floor(cfg.pw/h)*Math.floor(cfg.ph/w));
   let ep=0;
-  const det=X.map(x=>{
+  const det=X.map((x,ei)=>{
     const tot=x.n*e.qty,need=Math.ceil(tot/pM);let b=null;
-    R.forEach(([rw,rh],i)=>[[x.w,x.h],[x.h,x.w]].forEach(([w,h])=>{const c=Math.floor(rw/w),r=Math.floor(rh/h);if(c*r>0&&(!b||c*r>b.cap))b={i,cap:c*r,w,h,c};}));
+    R.forEach(([,,rw,rh],i)=>[[x.w,x.h],[x.h,x.w]].forEach(([w,h])=>{const c=Math.floor(rw/w),r=Math.floor(rh/h);if(c*r>0&&(!b||c*r>b.cap))b={i,cap:c*r,w,h,c};}));
     let k=0;
-    if(b){k=Math.min(need,b.cap);const[rw,rh]=R[b.i],cu=Math.min(k,b.c),w2=cu*b.w,h2=Math.ceil(k/b.c)*b.h;
-      R.splice(b.i,1,...[[rw-w2,rh],[w2,rh-h2]].filter(a=>a[0]>.5&&a[1]>.5));}
+    if(b){k=Math.min(need,b.cap);const[rx,ry,rw,rh]=R[b.i],cu=Math.min(k,b.c),w2=cu*b.w,h2=Math.ceil(k/b.c)*b.h;
+      for(let j=0;j<k;j++)place.push({ei,t:'E'+(ei+1),x:rx+(j%b.c)*b.w,y:ry+Math.floor(j/b.c)*b.h,w:b.w,h:b.h});
+      R.splice(b.i,1,...[[rx+w2,ry,rw-w2,rh],[rx,ry+h2,w2,rh-h2]].filter(a=>a[2]>.5&&a[3]>.5));}
     const rest=Math.max(0,tot-k*pM),pf=full(x.w,x.h),pl=pf&&rest?Math.ceil(rest/pf):0;ep+=pl;
-    return{perSheet:k,rest,pliegos:pl,fits:rest<=0,imp:!pf};
+    return{nombre:x.nombre,perSheet:k,rest,pliegos:pl,fits:rest<=0,imp:!pf};
   });
-  return{det,pliegos:Math.ceil(ep*(1+cfg.merma/100))};
+  return{det,place,pliegos:Math.ceil(ep*(1+cfg.merma/100))};
+}
+const XCOL=[['#DDD6FE','#7C3AED'],['#FBCFE8','#DB2777'],['#99F6E4','#0D9488'],['#FECACA','#DC2626']];
+function extrasSVG(ex,sc,mini){return ex.place.map(q=>{const[f,s]=XCOL[q.ei%4],w=q.w*sc,h=q.h*sc;
+  return `<rect x="${(q.x*sc).toFixed(1)}" y="${(q.y*sc).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="${f}" stroke="${s}" stroke-width=".8"/>`+
+  (!mini&&w>14&&h>9?`<text x="${(q.x*sc+w/2).toFixed(1)}" y="${(q.y*sc+h/2+3).toFixed(1)}" text-anchor="middle" font-size="${Math.min(9,w/3.2).toFixed(1)}" fill="${s}" font-family="sans-serif" font-weight="600">${q.t}</text>`:'');}).join('');}
+// Medidas (cm) de cada sección, escritas sobre la pieza #1 del plano
+function cajaDims(gj,sc,x,y,rot){
+  const{xs,yB,yF,p,L,W,H}=gj,f=v=>+v.toFixed(1),fs=Math.min(10,Math.max(5.5,sc*2.4));
+  const T=(u,v,t,du,dv,clr)=>{if(t.length*fs*.55>(rot?dv:du)*sc)return '';
+    const X=rot?x+(gj.hD-v)*sc:x+u*sc,Y=rot?y+u*sc:y+v*sc;
+    return `<text x="${X.toFixed(1)}" y="${(Y+fs/3).toFixed(1)}" text-anchor="middle" font-size="${fs.toFixed(1)}" fill="${clr||'#1e3a8a'}" font-family="sans-serif" font-weight="600">${t}</text>`;};
+  let o='';
+  for(let i=0;i<4;i++){const w=i%2?W:L;o+=T((xs[i]+xs[i+1])/2,yB+H/2,`${f(w)}×${f(H)}`,w,H);}
+  o+=T((xs[2]+xs[3])/2,yB-p.td/2,`${f(L)}×${f(p.td)}`,L,p.td);
+  o+=T((xs[1]+xs[2])/2,yB-p.od/2,`${f(W)}×${f(p.od)}`,W,p.od,'#92400E');
+  o+=T(p.g/2,yB+H/2,`${f(p.g)}`,p.g,H);
+  o+=T((xs[0]+xs[1])/2,yF+p.fb/2,`${f(p.fb)}`,L,p.fb);
+  return o;
 }
 function rEdit(){
   if(G.prod!=='caja')return '';
@@ -1983,7 +2002,7 @@ function cajaGeom(e){
   const sum=t=>Q.filter(p=>t.includes(p.tipo)).reduce((a,p)=>a+p.a,0);
   const total=aD*hD,A={cuerpo:sum(['cuerpo']),tapa:sum(['tapa']),oreja:sum(['oreja']),pestana:sum(['pestana','fondo'])};
   A.libre=Math.max(0,total-A.cuerpo-A.tapa-A.oreja-A.pestana);
-  return{aD,hD,P:Q,areas:A,total,cx:(xs[0]+xs[1])/2,cy:yB+H/2};
+  return{aD,hD,P:Q,areas:A,total,cx:(xs[0]+xs[1])/2,cy:yB+H/2,xs,yB,yF,p,L,W,H};
 }
 
 function cajaPiece(gj,sc,x,y,col,hi,rot,mini){
@@ -2051,10 +2070,12 @@ function buildSVG(c,W,H,mini){
   let p='';
   for(let r=0;r<c.pV;r++) for(let k=0;k<c.pH;k++){
     const idx=r*c.pH+k+1,x=k*pwp,y=r*php,hi=!mini&&G.hov===idx;
+    const o1=!mini&&gj&&idx===1,lx=o1?x+8:x+lb[0],ly=o1?y+10:y+lb[1]+4;
     p+=`<g${mini?'':` class="p" data-i="${idx}" style="cursor:pointer"`}>
       ${gj?cajaPiece(gj,sc,x,y,col,hi,G.rotado,mini):`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(pwp-.5).toFixed(1)}" height="${(php-.5).toFixed(1)}" rx="1"
         fill="${hi?col.hf:col.f}" stroke="${hi?col.hs:col.s}" stroke-width="${hi?1.5:.5}"/>`}
-      ${!mini&&pwp>24&&php>14?`<text x="${(x+lb[0]).toFixed(1)}" y="${(y+lb[1]+4).toFixed(1)}" text-anchor="middle" font-size="${Math.min(11,pwp/4.5).toFixed(1)}" fill="${col.hs}" font-family="sans-serif" font-weight="500">${idx}</text>`:''}
+      ${!mini&&pwp>24&&php>14?`<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="${Math.min(11,pwp/4.5).toFixed(1)}" fill="${col.hs}" font-family="sans-serif" font-weight="500">${idx}</text>`:''}
+      ${o1?cajaDims(gj,sc,x,y,G.rotado):''}
     </g>`;
   }
   const uW=c.pH*pwp,uH=c.pV*php,mW=Math.round(sW*.04),mH=Math.round(sH*.04);
@@ -2063,6 +2084,7 @@ function buildSVG(c,W,H,mini){
     ${uW<sW?`<rect x="${uW.toFixed(1)}" y="0" width="${(sW-uW).toFixed(1)}" height="${sH}" fill="#e2e8f0" opacity=".6"/>`:''}
     ${uH<sH?`<rect x="0" y="${uH.toFixed(1)}" width="${sW}" height="${(sH-uH).toFixed(1)}" fill="#e2e8f0" opacity=".6"/>`:''}
     ${p}
+    ${c.ex?extrasSVG(c.ex,sc,mini):''}
     <rect x="${sW-mW}" y="0" width="${mW}" height="${sH}" fill="#FEE2E2" stroke="#FCA5A5" stroke-width=".5" opacity=".7"/>
     <rect x="0" y="${sH-mH}" width="${sW}" height="${mH}" fill="#FEE2E2" stroke="#FCA5A5" stroke-width=".5" opacity=".7"/>
     <rect width="${sW}" height="${sH}" fill="none" stroke="#CBD5E1" stroke-width="1"/>
@@ -2390,6 +2412,7 @@ function rMont(){
         <div class="legend">
           ${PRODS.map(p=>{const col=COLORS[p.id];return`<div class="legi"><div class="legdot" style="background:${col.f};border:1px solid ${col.s}"></div>${p.icon} ${p.label}</div>`;}).join('')}
           ${G.prod==='caja'?`<div class="legi"><div class="legdot" style="background:#FDE68A;border:1px solid #D97706"></div>Orejas</div><div class="legi"><div class="legdot" style="background:${COLORS.caja.f};opacity:.55;border:1px solid ${COLORS.caja.s}"></div>Tapa y pestañas</div>`:''}
+          ${G.prod==='caja'&&c.ex?c.ex.det.map((d,i)=>`<div class="legi"><div class="legdot" style="background:${XCOL[i%4][0]};border:1px solid ${XCOL[i%4][1]}"></div>E${i+1} ${d.nombre}</div>`).join(''):''}
           <div class="legi"><div class="legdot" style="background:#FEE2E2;border:1px solid #FCA5A5"></div>Merma</div>
         </div>
         <div class="svgouter" id="svg-outer">${buildSVG(c,300,210,false)}</div>
